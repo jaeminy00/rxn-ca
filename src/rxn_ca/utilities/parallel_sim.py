@@ -2,7 +2,7 @@ from ..core.recipe import ReactionRecipe
 
 from ..reactions import ReactionLibrary
 from ..phases import SolidPhaseSet
-from ..computing.schemas.ca_result_schema import RxnCAResultDoc
+from ..computing.schemas.ca_result_schema import RxnCAResultDoc, MultiRxnCAResultDoc
 from ..core.reaction_result import ReactionResult
 
 from rxn_network.reactions.reaction_set import ReactionSet
@@ -18,7 +18,12 @@ from .get_scored_rxns import get_scored_rxns
 _reaction_lib = "reaction_lib"
 _recipe = "recipe"
 _initial_simulation = "initial_simulation"
-_JOBSTORE_OBJECTS = [ReactionResult]
+
+_JOBSTORE_OBJECTS = [ReactionLibrary, ReactionResult, RxnCAResultDoc] 
+#have to include RxnCAResultDoc because it contains lists of ReactionResult objects, 
+#and jobflow DOES NOT automatically recursively search inside each list item.
+#solution is to use a MultiRxnCAResultDoc as the output schema and 
+#store the RxnCAResultDoc objects in the data objects list.
 
 def _get_result(_):
 
@@ -235,5 +240,7 @@ def run_multi_recipe_parallel_ray(
 def run_multi_recipe_job(recipes: list[ReactionRecipe],
                                       reaction_libraries: list[ReactionLibrary],
                                       initial_simulations: list[Simulation] = None,
-                                      **kwargs) -> list[RxnCAResultDoc]:
-    return run_multi_recipe_parallel_ray(recipes, reaction_libraries, initial_simulations, **kwargs)
+                                      metadata: dict = None,
+                                      **kwargs) -> MultiRxnCAResultDoc:
+    result_docs = run_multi_recipe_parallel_ray(recipes, reaction_libraries, initial_simulations, **kwargs)
+    return MultiRxnCAResultDoc(recipes=recipes, results=result_docs, metadata=metadata)
