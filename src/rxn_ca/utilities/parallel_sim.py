@@ -2,7 +2,7 @@ from ..core.recipe import ReactionRecipe
 
 from ..reactions import ReactionLibrary
 from ..phases import SolidPhaseSet
-from ..computing.schemas.ca_result_schema import RxnCAResultDoc, MultiRxnCAResultDoc
+from ..computing.schemas.ca_result_schema import RxnCAResultDoc, MultiRxnCAResultDoc, compress_doc, get_metadata_from_results
 from ..core.reaction_result import ReactionResult
 
 from rxn_network.reactions.reaction_set import ReactionSet
@@ -94,6 +94,8 @@ def _run_single_realization(
     realization_id: int,
     reaction_lib: ReactionLibrary,
     initial_sim: Simulation = None,
+    compress: bool = True,
+    num_steps: int = 500,
     **sim_kwargs
 ) -> tuple[int, int, any]:
     """
@@ -116,6 +118,11 @@ def _run_single_realization(
         initial_simulation=initial_sim,
         **sim_kwargs
     )
+    
+    result_doc.metadata = get_metadata_from_results(result_doc.results)
+    
+    if compress:
+        result_doc = compress_doc(result_doc, num_steps)
     
     return (recipe_index, realization_id, result_doc.results[0])
 
@@ -236,7 +243,7 @@ def run_multi_recipe_parallel_ray(
     
     return result_docs
 
-@job(data=_JOBSTORE_OBJECTS)
+@job(results="rxn_docs")
 def run_multi_recipe_job(recipes: list[ReactionRecipe],
                                       reaction_libraries: list[ReactionLibrary],
                                       initial_simulations: list[Simulation] = None,
