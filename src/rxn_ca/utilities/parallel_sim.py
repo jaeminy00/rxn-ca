@@ -149,7 +149,6 @@ def run_multi_recipe_parallel_ray(
         num_workers: Number of CPU cores to use (default: all available on the current node)
         memory_per_task_gb: Memory requirement per task in GB (optional, for memory-aware scheduling)
         cpus_per_task: Number of CPUs per task (default: 1, since simulations typically don't benefit from multiple CPUs)
-        max_cpus_per_task: Maximum CPUs per task when auto-calculating (default: 1, unused if cpus_per_task is set)
         **kwargs: Additional kwargs to pass to run_single_sim (e.g., phase_set)
     
     Returns:
@@ -243,7 +242,7 @@ def run_multi_recipe_parallel_ray(
     
     return result_docs
 
-@job(results="rxn_docs")
+@job(data=_JOBSTORE_OBJECTS)
 def run_multi_recipe_job(recipes: list[ReactionRecipe],
                                       reaction_libraries: list[ReactionLibrary],
                                       initial_simulations: list[Simulation] = None,
