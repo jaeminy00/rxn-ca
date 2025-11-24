@@ -25,7 +25,7 @@ def _get_result(_):
         reaction_lib=mp_globals.get(_reaction_lib),
         initial_simulation=mp_globals.get(_initial_simulation)
     )
-    return result.results[0]
+    return (result.results[0], result.final_simulation)
 
 
 def run_sim_parallel(recipe: ReactionRecipe,
@@ -65,16 +65,19 @@ def run_sim_parallel(recipe: ReactionRecipe,
     }
 
     with mp.get_context("fork").Pool(recipe.num_realizations) as pool:
-        results = pool.map(_get_result, [_ for _ in range(recipe.num_realizations)])
+        sim_results = pool.map(_get_result, [_ for _ in range(recipe.num_realizations)])
+        final_simulations = [res[1] for res in sim_results]
+        results = [res[0] for res in sim_results]
 
     good_results = [res for res in results if res is not None]
-    print(f'{len(good_results)} results achieved out of {len(results)}')
+    print(f'{len(good_results)} results achieved out of {len(sim_results)}')
 
     result_doc = RxnCAResultDoc(
         recipe=recipe,
         results=good_results,
         reaction_library=reaction_lib,
-        phases=reaction_lib.phases
+        phases=reaction_lib.phases,
+        final_simulation=final_simulations[-1]
     )
 
     return result_doc
@@ -117,7 +120,7 @@ def _run_single_realization(
     if compress:
         result_doc = compress_doc(result_doc, num_steps)
     
-    return (recipe_index, realization_id, result_doc.results[0])
+    return (recipe_index, realization_id, result_doc.results[0], result_doc.final_simulation)
 
 
 def run_multi_recipe_parallel_ray(
@@ -209,10 +212,11 @@ def run_multi_recipe_parallel_ray(
     
     # Execute all tasks (Ray handles scheduling and load balancing)
     results = ray.get(task_refs)
+    final_simulations = [res[3] for res in results]
     
     # Group results by recipe
     recipe_results = {}
-    for recipe_idx, realization_id, result in results:
+    for recipe_idx, realization_id, result, final_simulation in results:
         if recipe_idx not in recipe_results:
             recipe_results[recipe_idx] = []
         recipe_results[recipe_idx].append(result)
@@ -229,7 +233,8 @@ def run_multi_recipe_parallel_ray(
             recipe=recipe,
             results=good_results,
             reaction_library=reaction_libraries[recipe_idx],
-            phases=reaction_libraries[recipe_idx].phases
+            phases=reaction_libraries[recipe_idx].phases,
+            final_simulation=final_simulations[recipe_idx]
         )
         result_docs.append(result_doc)
     

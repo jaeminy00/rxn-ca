@@ -5,6 +5,7 @@ from ...computing.schemas.ca_result_schema import RxnCAResultDoc
 from ...analysis.visualization.reaction_plotter import ReactionPlotter
 from ...analysis.bulk_reaction_analyzer import BulkReactionAnalyzer
 from ...analysis.visualization.reaction_graph import ReactionGraph
+from pylattica.core import Simulation
 
 from .base_schema import BaseSchema
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ class MultiRxnCAResultDoc(BaseSchema):
     phase_mass_plots: Optional[List[dict]]
     elemental_amount_plots: Optional[List[dict]]
     elemental_fraction_plots: Optional[List[dict]]
+    final_simulations: Optional[List[Simulation]]
     metadata: dict = None
     
     @classmethod
@@ -45,6 +47,8 @@ class MultiRxnCAResultDoc(BaseSchema):
         elemental_amount_plots = [p.plot_elemental_amounts().to_json() for p in plotter_objects]
         elemental_fraction_plots = [p.plot_elemental_fractions().to_json() for p in plotter_objects]
         
+        final_simulations = [rd.final_simulation for rd in result_docs]
+        
         return cls(recipes=recipes,
                    result_docs=result_docs if save_results_to_store else None,
                    mass_fraction_plots=mass_fraction_plots,
@@ -54,4 +58,5 @@ class MultiRxnCAResultDoc(BaseSchema):
                    phase_mass_plots=phase_mass_plots,
                    elemental_amount_plots=elemental_amount_plots,
                    elemental_fraction_plots=elemental_fraction_plots,
+                   final_simulations=final_simulations,
                    metadata=metadata)
