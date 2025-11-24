@@ -18,8 +18,8 @@ class MultiRxnCAMaker(Maker):
     name: str = "MultiRxnCA Maker"
     metadata: dict = None
     save_results_to_store: bool = False
-    num_workers: int = 1
-    memory_per_task_gb: float = 1.0
+    num_workers: int = None
+    memory_per_task_gb: float = None
     cpus_per_task: int = 1
     compress: bool = True
     plotting_kwargs: dict = None
