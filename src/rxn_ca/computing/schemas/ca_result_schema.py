@@ -39,9 +39,3 @@ def assemble_rxn_choices(result: ReactionResult):
         rxn_choice = step.get_general_state(REACTION_CHOSEN)
         choices.append(rxn_choice)
     return choices
-
-@dataclass
-class MultiRxnCAResultDoc(BaseSchema):
-    recipes: List[ReactionRecipe]
-    results: List[RxnCAResultDoc]
-    metadata: dict = None
