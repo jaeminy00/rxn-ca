@@ -5,7 +5,7 @@ from ..computing.schemas.ca_result_schema import RxnCAResultDoc
 from ..utilities.parallel_sim import run_multi_recipe_parallel_ray
 from pylattica.core import Simulation
 from jobflow import job, Maker
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 
 _JOBSTORE_OBJECTS = [ReactionLibrary, RxnCAResultDoc] 
@@ -23,7 +23,7 @@ class MultiRxnCAMaker(Maker):
     cpus_per_task: int = 1
     compress: bool = True
     plotting_kwargs: dict = None
-    reaction_plotter_kwargs: dict = None
+    reaction_plotter_kwargs: dict = field(default_factory=lambda: {"include_heating_trace": True})
 
     @job(results="rxn_docs", data=_JOBSTORE_OBJECTS)
     def make(self, recipes: List[ReactionRecipe], 
@@ -36,10 +36,6 @@ class MultiRxnCAMaker(Maker):
         for i,initial_simulation in enumerate(initial_simulations):
             if isinstance(initial_simulation, str):
                 initial_simulations[i] = Simulation.from_file(initial_simulation)
-            elif initial_simulation is None:
-                initial_simulations[i] = None
-            else:
-                raise ValueError(f"Invalid initial simulation type: {type(initial_simulation)}")
         
         result_docs = run_multi_recipe_parallel_ray(recipes, 
                                                     reaction_libraries, 
