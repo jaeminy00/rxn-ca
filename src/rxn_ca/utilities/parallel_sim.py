@@ -105,9 +105,9 @@ def _run_single_realization(
         **sim_kwargs: Additional kwargs to pass to run_single_sim
     
     Returns:
-        Tuple of (recipe_index, realization_id, result)
+        Tuple of (recipe_index, realization_id, result, final_simulation)
     """
-    result_doc = run_single_sim(
+    result_doc: RxnCAResultDoc = run_single_sim(
         recipe, 
         reaction_lib=reaction_lib,
         initial_simulation=initial_sim,
