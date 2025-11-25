@@ -9,7 +9,6 @@ from pylattica.core import Simulation
 
 from .base_schema import BaseSchema
 from dataclasses import dataclass
-import os
 
 @dataclass
 class MultiRxnCAResultDoc(BaseSchema):
