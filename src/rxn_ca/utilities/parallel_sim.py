@@ -9,7 +9,6 @@ from pylattica.core import Simulation
 
 import multiprocessing as mp
 import ray
-from jobflow import job
 
 from .single_sim import run_single_sim
 from .get_scored_rxns import get_scored_rxns
@@ -216,7 +215,7 @@ def run_multi_recipe_parallel_ray(
     
     # Group results by recipe
     recipe_results = {}
-    for recipe_idx, realization_id, result, final_simulation in results:
+    for recipe_idx, _, result, _ in results:
         if recipe_idx not in recipe_results:
             recipe_results[recipe_idx] = []
         recipe_results[recipe_idx].append(result)

@@ -102,7 +102,8 @@ class MultiRxnCAMaker(Maker):
                 elif isinstance(initial_simulations, str):
                     initial_simulations = [Simulation.from_file(initial_simulations)] * len(recipes)
                 else:
-                    raise ValueError("If initial_simulations is provided, it must be a list of Simulation objects, a single Simulation object, or a string path to a Simulation object")
+                    raise ValueError("If initial_simulations is provided, it must be a list of Simulation objects, \
+                        a single Simulation object, or a string path to a Simulation object")
             elif len(initial_simulations) != len(recipes):
                 raise ValueError("If initial_simulations is provided, it must be the same length as the number of recipes/libraries")
             
@@ -129,4 +130,3 @@ class MultiRxnCAMaker(Maker):
                                                                         run_dir=os.getcwd())
         multi_rxn_ca_result_doc.to_file("multi_rxn_ca_result.json")
         return multi_rxn_ca_result_doc
-

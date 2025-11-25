@@ -4,7 +4,6 @@ from ...core.recipe import ReactionRecipe
 from ...computing.schemas.ca_result_schema import RxnCAResultDoc
 from ...analysis.visualization.reaction_plotter import ReactionPlotter
 from ...analysis.bulk_reaction_analyzer import BulkReactionAnalyzer
-from ...analysis.visualization.reaction_graph import ReactionGraph
 from pylattica.core import Simulation
 
 from .base_schema import BaseSchema
@@ -32,11 +31,7 @@ class MultiRxnCAResultDoc(BaseSchema):
                            run_dir: str = None,
                            **kwargs):
 
-        if "reaction_plotter_kwargs" in kwargs:
-            reaction_plotter_kwargs = kwargs["reaction_plotter_kwargs"]
-        else:
-            reaction_plotter_kwargs = {}
-        
+        reaction_plotter_kwargs = kwargs.get("reaction_plotter_kwargs", {})
         recipes = [rd.recipe for rd in result_docs]
         analyzers = [BulkReactionAnalyzer.from_result_doc(rd) for rd in result_docs]
         plotter_objects = [ReactionPlotter(analyzer, **reaction_plotter_kwargs) for analyzer in analyzers]
