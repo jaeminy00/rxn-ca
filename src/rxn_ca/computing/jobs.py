@@ -7,6 +7,7 @@ from pylattica.core import Simulation
 from jobflow import job, Maker
 from dataclasses import dataclass, field
 from typing import List
+import os
 
 _JOBSTORE_OBJECTS = [ReactionLibrary, RxnCAResultDoc] 
 #have to include RxnCAResultDoc because it contains lists of ReactionResult objects, 
@@ -57,7 +58,8 @@ class MultiRxnCAMaker(Maker):
                                                                         metadata=self.metadata, 
                                                                         save_results_to_store=self.save_results_to_store,
                                                                         plotting_kwargs=self.plotting_kwargs,
-                                                                        reaction_plotter_kwargs=self.reaction_plotter_kwargs)
+                                                                        reaction_plotter_kwargs=self.reaction_plotter_kwargs,
+                                                                        run_dir=os.getcwd())
         multi_rxn_ca_result_doc.to_file("multi_rxn_ca_result.json")
         return multi_rxn_ca_result_doc
 

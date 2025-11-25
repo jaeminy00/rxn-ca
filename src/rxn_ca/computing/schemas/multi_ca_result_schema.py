@@ -9,6 +9,7 @@ from pylattica.core import Simulation
 
 from .base_schema import BaseSchema
 from dataclasses import dataclass
+import os
 
 @dataclass
 class MultiRxnCAResultDoc(BaseSchema):
@@ -23,11 +24,13 @@ class MultiRxnCAResultDoc(BaseSchema):
     elemental_fraction_plots: Optional[List[dict]]
     final_simulations: Optional[List[Simulation]]
     metadata: dict = None
+    run_dir: str = None
     
     @classmethod
     def from_multiple_jobs(cls, result_docs : List[RxnCAResultDoc], 
                            metadata : Optional[dict] = None, 
                            save_results_to_store : bool = False,
+                           run_dir: str = None,
                            **kwargs):
 
         if "reaction_plotter_kwargs" in kwargs:
@@ -59,4 +62,5 @@ class MultiRxnCAResultDoc(BaseSchema):
                    elemental_amount_plots=elemental_amount_plots,
                    elemental_fraction_plots=elemental_fraction_plots,
                    final_simulations=final_simulations,
-                   metadata=metadata)
+                   metadata=metadata,
+                   run_dir=run_dir)
