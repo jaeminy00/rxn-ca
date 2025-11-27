@@ -70,7 +70,7 @@ class MultiRxnCAMaker(Maker):
              **kwargs) -> MultiRxnCAResultDoc:
         
         if self.multi_rxn_type == MultiRxnType.MULTI_LIB:
-            if len(recipes) != 1:
+            if isinstance(recipes, list) and len(recipes) != 1:
                 raise ValueError("MultiRxnType.MULTI_LIB requires exactly one recipe")
             
             print(f"Running {len(reaction_libraries)} library realizations for given recipe")
@@ -80,7 +80,7 @@ class MultiRxnCAMaker(Maker):
                 recipes = [recipes[0]] * len(reaction_libraries)
             
         if self.multi_rxn_type == MultiRxnType.MULTI_RECIPE:
-            if len(reaction_libraries) != 1:
+            if isinstance(reaction_libraries, list) and len(reaction_libraries) != 1:
                 raise ValueError("MultiRxnType.MULTI_RECIPE requires exactly one reaction library")
             
             print(f"Running {len(recipes)} recipe realizations with given reaction library")
