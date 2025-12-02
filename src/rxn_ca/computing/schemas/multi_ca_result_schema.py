@@ -5,6 +5,8 @@ from ...computing.schemas.ca_result_schema import RxnCAResultDoc
 from ...analysis.visualization.reaction_plotter import ReactionPlotter
 from ...analysis.bulk_reaction_analyzer import BulkReactionAnalyzer
 from pylattica.core import Simulation
+from ...utilities.viz import get_plotted_data
+from ...utilities.analysis import has_simulation_converged
 
 from .base_schema import BaseSchema
 from dataclasses import dataclass
@@ -21,6 +23,7 @@ class MultiRxnCAResultDoc(BaseSchema):
     elemental_amount_plots: Optional[List[dict]]
     elemental_fraction_plots: Optional[List[dict]]
     final_simulations: Optional[List[Simulation]]
+    have_simulations_converged: Optional[List[bool]]
     metadata: dict = None
     run_dir: str = None
     
@@ -36,13 +39,15 @@ class MultiRxnCAResultDoc(BaseSchema):
         analyzers = [BulkReactionAnalyzer.from_result_doc(rd) for rd in result_docs]
         plotter_objects = [ReactionPlotter(analyzer, **reaction_plotter_kwargs) for analyzer in analyzers]
         
-        mass_fraction_plots = [p.plot_mass_fractions().to_json() for p in plotter_objects]
-        molar_fraction_plots = [p.plot_molar_phase_fractions().to_json() for p in plotter_objects]
-        molar_amount_plots = [p.plot_molar_phase_amounts().to_json() for p in plotter_objects]
-        phase_volume_plots = [p.plot_phase_volumes().to_json() for p in plotter_objects]
-        phase_mass_plots = [p.plot_phase_masses().to_json() for p in plotter_objects]
-        elemental_amount_plots = [p.plot_elemental_amounts().to_json() for p in plotter_objects]
-        elemental_fraction_plots = [p.plot_elemental_fractions().to_json() for p in plotter_objects]
+        mass_fraction_plots = [get_plotted_data(p.plot_mass_fractions()) for p in plotter_objects]
+        molar_fraction_plots = [get_plotted_data(p.plot_molar_phase_fractions()) for p in plotter_objects]
+        molar_amount_plots = [get_plotted_data(p.plot_molar_phase_amounts()) for p in plotter_objects]
+        phase_volume_plots = [get_plotted_data(p.plot_phase_volumes()) for p in plotter_objects]
+        phase_mass_plots = [get_plotted_data(p.plot_phase_masses()) for p in plotter_objects]
+        elemental_amount_plots = [get_plotted_data(p.plot_elemental_amounts()) for p in plotter_objects]
+        elemental_fraction_plots = [get_plotted_data(p.plot_elemental_fractions()) for p in plotter_objects]
+        
+        have_simulations_converged = [has_simulation_converged(analyzer) for analyzer in analyzers]
         
         final_simulations = [rd.final_simulation for rd in result_docs]
         
@@ -56,5 +61,6 @@ class MultiRxnCAResultDoc(BaseSchema):
                    elemental_amount_plots=elemental_amount_plots,
                    elemental_fraction_plots=elemental_fraction_plots,
                    final_simulations=final_simulations,
+                   have_simulations_converged=have_simulations_converged,
                    metadata=metadata,
                    run_dir=run_dir)
