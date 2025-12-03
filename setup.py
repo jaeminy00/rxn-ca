@@ -34,7 +34,8 @@ setup(
         'monty',
         'pydantic',
         'mp-api',
-        'pylattica >= 0.1.4' 
+        'pylattica >= 0.1.4',
+        'ray >= 2.0.0'
     ],
     extras_require={
         "docs": [
