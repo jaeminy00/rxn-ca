@@ -6,7 +6,6 @@ from ...analysis.visualization.reaction_plotter import ReactionPlotter
 from ...analysis.bulk_reaction_analyzer import BulkReactionAnalyzer
 from pylattica.core import Simulation
 from ...utilities.viz import get_plotted_data
-from ...utilities.analysis import has_simulation_converged
 
 from .base_schema import BaseSchema
 from dataclasses import dataclass
@@ -47,7 +46,7 @@ class MultiRxnCAResultDoc(BaseSchema):
         elemental_amount_plots = [get_plotted_data(p.plot_elemental_amounts()) for p in plotter_objects]
         elemental_fraction_plots = [get_plotted_data(p.plot_elemental_fractions()) for p in plotter_objects]
         
-        have_simulations_converged = [has_simulation_converged(analyzer) for analyzer in analyzers]
+        have_simulations_converged = [analyzer.has_simulation_converged() for analyzer in analyzers]
         
         final_simulations = [rd.final_simulation for rd in result_docs]
         
