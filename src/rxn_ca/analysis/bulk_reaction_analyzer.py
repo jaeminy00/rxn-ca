@@ -10,7 +10,7 @@ from ..computing.schemas.ca_result_schema import RxnCAResultDoc
 
 from typing import Tuple, List
 import numpy as np
-
+    
 def color(color, text):
     return f"<span style='color:{str(color)}'> {str(text)} </span>"
 
