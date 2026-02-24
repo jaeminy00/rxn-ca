@@ -288,6 +288,11 @@ class SearchSpace:
     def __len__(self) -> int:
         return len(self.parameters)
 
+    @property
+    def parameter_names(self) -> List[str]:
+        """Get list of all parameter names."""
+        return [p.name for p in self.parameters]
+
     def __repr__(self) -> str:
         param_strs = []
         for p in self.parameters:
