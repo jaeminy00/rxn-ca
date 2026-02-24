@@ -34,12 +34,40 @@ def get_scored_rxns(rxn_set: ReactionSet,
                     phase_set: SolidPhaseSet = None,
                     rxns_at_temps = None,
                     scorer_kwargs: dict = {},
-                    parallel=True):
+                    parallel=True,
+                    existing_lib: ReactionLibrary = None):
+    """Score reactions at specified temperatures.
 
-    lib = ReactionLibrary(phases=phase_set)
+    Args:
+        rxn_set: Base reaction set from rxn_network
+        heating_sched: Heating schedule to extract temperatures from
+        temps: List of temperatures (alternative to heating_sched)
+        scorer_class: Scorer class to use (default: TammanScore)
+        phase_set: Phase set with volume and melting point data
+        rxns_at_temps: Pre-computed temperature-specific reactions (optional)
+        scorer_kwargs: Additional kwargs for scorer
+        parallel: Whether to score in parallel (default: True)
+        existing_lib: Existing ReactionLibrary to reuse scored temps from.
+            Only temperatures not in existing_lib will be scored.
+
+    Returns:
+        ReactionLibrary with scored reactions at all temperatures
+    """
+    # Start with existing library or create new one
+    if existing_lib is not None:
+        lib = existing_lib
+    else:
+        lib = ReactionLibrary(phases=phase_set)
 
     if heating_sched is not None:
         temps = heating_sched.all_temps
+
+    # Filter to only temps we need to score
+    temps_to_score = lib.get_missing_temps(temps)
+
+    if len(temps_to_score) == 0:
+        # All temps already scored, nothing to do
+        return lib
 
     if rxns_at_temps is not None:
         rxns_at_temps = {int(t): r for t, r in rxns_at_temps.items() }
@@ -53,17 +81,16 @@ def get_scored_rxns(rxn_set: ReactionSet,
 
         if rxns_at_temps is not None:
             _scoring_globals['rxns_at_tmps'] = rxns_at_temps
-                
-        with mp.get_context('fork').Pool(mp.cpu_count()) as pool:
 
-            results = pool.map(fn, temps)
-            for t, r in zip(temps, results):
+        with mp.get_context('fork').Pool(mp.cpu_count()) as pool:
+            results = pool.map(fn, temps_to_score)
+            for t, r in zip(temps_to_score, results):
                 lib.add_rxns_at_temp(r, t)
     else:
         if rxns_at_temps is None:
-            rxns_at_temps = rxn_set.compute_at_temperatures(temps)
-        
-        for t in temps:
+            rxns_at_temps = rxn_set.compute_at_temperatures(temps_to_score)
+
+        for t in temps_to_score:
             scorer = scorer_class(temp=t, phase_set=phase_set, **scorer_kwargs)
             rset = rxns_at_temps.get(t)
 
