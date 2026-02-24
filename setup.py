@@ -53,6 +53,14 @@ setup(
         ],
         "dev": ["pre-commit>=2.12.1"],
         "vis": ["matplotlib", "pydot"],
+        "optimization": [
+            "baybe>=0.8.0",
+            "deap>=1.4.0",
+        ],
+        "optimization-chem": [
+            "baybe[chem]>=0.8.0",
+            "deap>=1.4.0",
+        ],
     },
     classifiers=[
         "Programming Language :: Python :: 3",
