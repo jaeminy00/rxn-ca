@@ -1,5 +1,5 @@
 from pylattica.core import SimulationState, SimulationResult
-from pylattica.core.constants import SITES, GENERAL
+
 
 class ReactionResult(SimulationResult):
     """A class that stores the result of running a simulation. Keeps track of all
@@ -7,26 +7,28 @@ class ReactionResult(SimulationResult):
     was used in the simulation.
     """
 
-    @classmethod
-    def from_dict(cls, res_dict):
-        diffs = res_dict["diffs"]
-        res = ReactionResult(
-            SimulationState.from_dict(res_dict["initial_state"]),
-        )
-        for diff in diffs:
-            if SITES in diff:
-                diff[SITES] = { int(k): v for k, v in diff[SITES].items() }
-            if GENERAL not in diff and SITES not in diff:
-                diff = { int(k): v for k, v in diff.items() }
-            res.add_step(diff)
-        return res
+    # Inherits from_dict from SimulationResult - it uses cls() so creates ReactionResult
 
-    def __init__(self,
-                 starting_state: SimulationState):
-        """Initializes a ReactionResult with the reaction set used in the simulation
+    def __init__(
+        self,
+        starting_state: SimulationState,
+        compress_freq: int = 1,
+        max_history: int = None,
+        live_compress: bool = False,
+    ):
+        """Initializes a ReactionResult.
 
         Args:
-            rxn_set (ScoredReactionSet):
+            starting_state: The initial simulation state.
+            compress_freq: Interval for storing frames when live_compress is True.
+            max_history: Max diffs to keep before checkpointing (None = unlimited).
+            live_compress: If True, store full state snapshots at compress_freq
+                intervals instead of diffs. Avoids slow reconstruction in analysis.
         """
-        super().__init__(starting_state)
+        super().__init__(
+            starting_state,
+            compress_freq=compress_freq,
+            max_history=max_history,
+            live_compress=live_compress,
+        )
     

@@ -27,22 +27,31 @@ class LiquidSwapController(BasicController):
     def get_neighborhood_from_structure(cls, structure: PeriodicStructure):
         return VonNeumannNbHood3DBuilder(1).get(structure)
     
-    def __init__(self,
+    def __init__(
+        self,
         structure: PeriodicStructure,
         rxn_calculator: ReactionCalculator,
+        compress_freq: int = 1,
+        live_compress: bool = False,
     ) -> None:
         self.structure = structure
         self.reaction_calculator = rxn_calculator
         self.temperature = None
+        self.compress_freq = compress_freq
+        self.live_compress = live_compress
 
     def set_rxn_set(self, rxn_set: ScoredReactionSet):
         self.reaction_calculator.set_rxn_set(rxn_set)
-    
+
     def set_temperature(self, temp: int):
         self.temperature = temp
 
     def instantiate_result(self, starting_state: SimulationState):
-        return ReactionResult(starting_state)
+        return ReactionResult(
+            starting_state,
+            compress_freq=self.compress_freq,
+            live_compress=self.live_compress,
+        )
 
     def get_state_update(self, site_id: int, prev_state: SimulationState):
         np.random.seed(None)
