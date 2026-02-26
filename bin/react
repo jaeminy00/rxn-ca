@@ -2,7 +2,7 @@
 
 from rxn_ca.core.recipe import ReactionRecipe
 from rxn_ca.reactions import ReactionLibrary
-from rxn_ca.computing.schemas.ca_result_schema import compress_doc, get_metadata_from_results
+from rxn_ca.computing.schemas.ca_result_schema import get_metadata_from_results
 
 from rxn_ca.utilities.single_sim import run_single_sim
 from rxn_ca.utilities.parallel_sim import run_sim_parallel
@@ -86,13 +86,19 @@ for recipe_filename in recipe_filenames:
 
     print(f"Choosing {output_file} as output location")
 
+    # Use live_compress when --compress is specified for fast analysis
+    use_live_compress = args.compress
+    compress_freq = 500 if use_live_compress else 1
+
     if args.single:
         result_doc = run_single_sim(
             recipe,
             base_reactions=reaction_set,
             reaction_lib=rxn_lib,
             initial_simulation=initial_simulation,
-            phase_set = phases
+            phase_set=phases,
+            compress_freq=compress_freq,
+            live_compress=use_live_compress,
         )
     else:
         result_doc = run_sim_parallel(
@@ -100,7 +106,9 @@ for recipe_filename in recipe_filenames:
             base_reactions=reaction_set,
             reaction_lib=rxn_lib,
             initial_simulation=initial_simulation,
-            phase_set = phases
+            phase_set=phases,
+            compress_freq=compress_freq,
+            live_compress=use_live_compress,
         )
 
     print("Assembling metadata from results...")
@@ -109,14 +117,13 @@ for recipe_filename in recipe_filenames:
     print(f'================= SAVING RESULTS to {output_file} =================')
 
     if args.compress:
-        print("Compressing result...")
+        # With live_compress, result is already compressed - just save it
         compressed_fpath = output_file.split(".")[0] + "_compressed.json"
-        compressed = compress_doc(result_doc, num_steps=500)
         if not store_lib:
             print("Discarding reaction library...")
-            compressed.reaction_library = None
+            result_doc.reaction_library = None
         print(f"Saving compressed results to {compressed_fpath}")
-        compressed.to_file(compressed_fpath)
+        result_doc.to_file(compressed_fpath)
     else:
         print(f"Saving original results to {output_file}...")
         result_doc.to_file(output_file)
