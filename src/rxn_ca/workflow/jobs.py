@@ -132,7 +132,7 @@ def setup_reaction_library(
 
 @job
 def run_simulation(
-    recipe_dict: Dict[str, Any],
+    recipe: "ReactionRecipe",
     reaction_library_data: ReactionLibraryData = None,
     chemical_system: str = None,
     ensure_phases: List[str] = None,
@@ -143,7 +143,7 @@ def run_simulation(
     """Run an rxn-ca simulation.
 
     Args:
-        recipe_dict: ReactionRecipe serialized as dict (from recipe.as_dict())
+        recipe: ReactionRecipe specifying reactants, heating schedule, etc.
         reaction_library_data: Pre-computed reaction library from setup_reaction_library.
             If not provided, will build one from scratch (requires chemical_system).
         chemical_system: Chemical system string, required if reaction_library_data
@@ -165,8 +165,7 @@ def run_simulation(
     from rxn_ca.analysis import BulkReactionAnalyzer
     from rxn_ca.reactions import ReactionLibrary
 
-    # Reconstruct recipe
-    recipe = ReactionRecipe.from_dict(recipe_dict)
+    recipe_dict = recipe.as_dict()
 
     # Set up phase set and reaction library
     if reaction_library_data is not None:

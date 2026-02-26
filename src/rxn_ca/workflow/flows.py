@@ -62,20 +62,15 @@ def create_simulation_flow(
         ...     ensure_phases=["BaTiO3", "BaCO3", "TiO2"],
         ... )
     """
-    # Convert recipe to dict if needed
-    if hasattr(recipe, "as_dict"):
-        recipe_dict = recipe.as_dict()
-        heating_schedule = recipe.heating_schedule
-    else:
-        recipe_dict = recipe
-        # Need to reconstruct heating schedule to get temperatures
-        from rxn_ca.core.recipe import ReactionRecipe
+    # Ensure we have a ReactionRecipe object
+    from rxn_ca.core.recipe import ReactionRecipe
 
-        heating_schedule = ReactionRecipe.from_dict(recipe_dict).heating_schedule
+    if not isinstance(recipe, ReactionRecipe):
+        recipe = ReactionRecipe.from_dict(recipe)
 
     # Get temperatures from recipe if not provided
     if temperatures is None:
-        temperatures = heating_schedule.all_temps
+        temperatures = recipe.heating_schedule.all_temps
 
     # Create setup job
     setup_job = setup_reaction_library(
@@ -90,7 +85,7 @@ def create_simulation_flow(
 
     # Create simulation job
     sim_job = run_simulation(
-        recipe_dict=recipe_dict,
+        recipe=recipe,
         reaction_library_data=setup_job.output,
         save_to_file=save_to_file,
         metadata=metadata,
@@ -135,18 +130,15 @@ def create_multi_simulation_flow(
     """
     from rxn_ca.core.recipe import ReactionRecipe
 
-    # Convert recipes to dicts and collect temperatures
-    recipe_dicts = []
+    # Ensure all recipes are ReactionRecipe objects and collect temperatures
+    recipe_objects = []
     all_temps = set()
 
-    for recipe in recipes:
-        if hasattr(recipe, "as_dict"):
-            recipe_dicts.append(recipe.as_dict())
-            all_temps.update(recipe.heating_schedule.all_temps)
-        else:
-            recipe_dicts.append(recipe)
-            r = ReactionRecipe.from_dict(recipe)
-            all_temps.update(r.heating_schedule.all_temps)
+    for r in recipes:
+        if not isinstance(r, ReactionRecipe):
+            r = ReactionRecipe.from_dict(r)
+        recipe_objects.append(r)
+        all_temps.update(r.heating_schedule.all_temps)
 
     # Use provided temperatures or collected ones
     if temperatures is None:
@@ -167,11 +159,11 @@ def create_multi_simulation_flow(
     outputs = []
 
     # Create simulation jobs
-    for i, recipe_dict in enumerate(recipe_dicts):
+    for i, recipe in enumerate(recipe_objects):
         metadata = metadata_list[i] if metadata_list else None
 
         sim_job = run_simulation(
-            recipe_dict=recipe_dict,
+            recipe=recipe,
             reaction_library_data=setup_job.output,
             save_to_file=save_to_file,
             metadata=metadata,
