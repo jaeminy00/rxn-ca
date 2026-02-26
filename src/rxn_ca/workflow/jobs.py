@@ -139,6 +139,8 @@ def run_simulation(
     metastability_cutoff: float = 0.1,
     save_to_file: bool = True,
     metadata: Dict[str, Any] = None,
+    live_compress: bool = True,
+    compress_freq: int = 100,
 ) -> SimulationOutput:
     """Run an rxn-ca simulation.
 
@@ -154,6 +156,9 @@ def run_simulation(
             from scratch
         save_to_file: If True, save the full result doc to a JSON file
         metadata: Optional user-provided metadata for tagging/provenance
+        live_compress: If True, store full state snapshots at compress_freq
+            intervals instead of diffs. Avoids slow reconstruction during analysis.
+        compress_freq: Interval for storing frames when live_compress is True.
 
     Returns:
         SimulationOutput with analyzed results and file references
@@ -189,12 +194,16 @@ def run_simulation(
             recipe=recipe,
             reaction_lib=reaction_lib,
             phase_set=phase_set,
+            live_compress=live_compress,
+            compress_freq=compress_freq,
         )
     else:
         result_doc = run_single_sim(
             recipe=recipe,
             reaction_lib=reaction_lib,
             phase_set=phase_set,
+            live_compress=live_compress,
+            compress_freq=compress_freq,
         )
 
     # Optionally save result doc to file
