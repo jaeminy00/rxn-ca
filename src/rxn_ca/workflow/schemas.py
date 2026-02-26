@@ -1,6 +1,6 @@
 """Output schemas for rxn-ca workflow jobs."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
 
@@ -20,6 +20,17 @@ class ReactionLibraryData:
 
     # If the library was saved to a file, this is the path
     reaction_library_path: Optional[str] = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["@module"] = self.__class__.__module__
+        d["@class"] = self.__class__.__name__
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "ReactionLibraryData":
+        d = {k: v for k, v in d.items() if not k.startswith("@")}
+        return cls(**d)
 
 
 @dataclass
@@ -53,3 +64,14 @@ class SimulationOutput:
     chemical_system: Optional[str] = None
     num_realizations: int = 1
     metadata: Optional[Dict[str, Any]] = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["@module"] = self.__class__.__module__
+        d["@class"] = self.__class__.__name__
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "SimulationOutput":
+        d = {k: v for k, v in d.items() if not k.startswith("@")}
+        return cls(**d)
