@@ -129,12 +129,22 @@ class BulkReactionAnalyzer():
 
     def _get_step_groups(self) -> Tuple[List[int], List]:
         if self._step_idxs is None:
-            num_points = self.result_length / 2
-            step_size = max(1, round(self.result_length / num_points))
-            if not self._results_loaded:
-                [r.load_steps(step_size) for r in self.results]
+            first_result = self.results[0]
+
+            # Check if results use live_compress (frames already stored)
+            if hasattr(first_result, '_frames') and first_result._frames:
+                # Use the stored frames directly - no reconstruction needed
+                self._step_idxs = sorted(first_result._frames.keys())
                 self._results_loaded = True
-            self._step_idxs = list(range(0, self.result_length, step_size))
+            else:
+                # Traditional mode: load steps at computed interval
+                num_points = self.result_length / 2
+                step_size = max(1, round(self.result_length / num_points))
+                if not self._results_loaded:
+                    [r.load_steps(step_size) for r in self.results]
+                    self._results_loaded = True
+                self._step_idxs = list(range(0, self.result_length, step_size))
+
             self._step_groups = [[r.get_step(step_idx) for r in self.results] for step_idx in self._step_idxs]
 
         return self._step_idxs, self._step_groups
