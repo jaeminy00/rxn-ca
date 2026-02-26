@@ -21,7 +21,9 @@ def run_single_sim(recipe: ReactionRecipe,
                    reaction_lib: ReactionLibrary = None,
                    initial_simulation: Simulation = None,
                    phase_set: SolidPhaseSet = None,
-                   existing_lib: ReactionLibrary = None) -> RxnCAResultDoc:
+                   existing_lib: ReactionLibrary = None,
+                   compress_freq: int = 1,
+                   live_compress: bool = False) -> RxnCAResultDoc:
     """Run a single simulation.
 
     Args:
@@ -32,6 +34,9 @@ def run_single_sim(recipe: ReactionRecipe,
         phase_set: Phase set for the system
         existing_lib: Existing library with some temps already scored.
             New temps will be added to this library incrementally.
+        compress_freq: Interval for storing frames when live_compress is True.
+        live_compress: If True, store full state snapshots at compress_freq
+            intervals instead of diffs. Avoids slow reconstruction during analysis.
 
     Returns:
         RxnCAResultDoc with simulation results
@@ -89,6 +94,8 @@ def run_single_sim(recipe: ReactionRecipe,
     controller = LiquidSwapController(
         initial_simulation.structure,
         rxn_calculator=rxn_calculator,
+        compress_freq=compress_freq,
+        live_compress=live_compress,
     )
 
     runner = HeatingScheduleRunner()

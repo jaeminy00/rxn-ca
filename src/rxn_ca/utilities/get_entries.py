@@ -38,8 +38,20 @@ def get_entries(chem_sys: str,
     stable_entries = entry_set.filter_by_stability(metastability_cutoff)
 
     if exclude_theoretical_phases:
-        solid_phase_set = SolidPhaseSet.from_entry_set(stable_entries)        
-        return remove_theoretical_phases(stable_entries, solid_phase_set)
+        solid_phase_set = SolidPhaseSet.from_entry_set(stable_entries)
+        filtered = remove_theoretical_phases(stable_entries, solid_phase_set)
+
+        # Re-add any ensure_phases that were removed by the theoretical filter
+        # (they may be marked theoretical in MP but we know they're real)
+        if ensure_phases:
+            ensure_set = set(ensure_phases)
+            filtered_formulas = {e.composition.reduced_formula for e in filtered}
+            for e in stable_entries:
+                formula = e.composition.reduced_formula
+                if formula in ensure_set and formula not in filtered_formulas:
+                    filtered.add(e)
+
+        return filtered
     else:
         return stable_entries
 

@@ -96,14 +96,35 @@ class MeltAndRegrindMultiRunner(HeatingScheduleRunner):
 def concatenate_results(results: List[ReactionResult]):
     starting_state = results[0].initial_state
 
+    # Preserve compress_freq and live_compress from first result
+    first_result = results[0]
     new_result = ReactionResult(
-        starting_state
+        starting_state,
+        compress_freq=first_result.compress_freq,
+        live_compress=first_result.live_compress,
     )
+
+    # Track cumulative step offset for frame indices
+    step_offset = 0
 
     for idx, res in enumerate(results):
         if idx > 0:
             new_result.add_step(res.first_step._state)
-        for d in res._diffs:
-            new_result.add_step(d)
-    
+            step_offset += 1
+
+        # If live_compress mode, copy frames with adjusted indices
+        if res.live_compress and res._frames:
+            for frame_step, frame_state in res._frames.items():
+                if frame_step == 0 and idx > 0:
+                    # Skip frame 0 for subsequent results (already have that state)
+                    continue
+                new_result._frames[step_offset + frame_step] = frame_state
+            # Update offset by the max frame step
+            step_offset += max(res._frames.keys()) if res._frames else 0
+            new_result._total_steps = step_offset
+        else:
+            # Normal mode: copy diffs
+            for d in res._diffs:
+                new_result.add_step(d)
+
     return new_result
