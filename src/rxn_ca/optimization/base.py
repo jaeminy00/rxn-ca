@@ -2,8 +2,12 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+import json
+import time
 
 import pandas as pd
 
@@ -235,16 +239,38 @@ class BaseOptimizer(ABC):
         for result in results:
             self.tell(result.parameters, result.score)
 
-    def optimize(self, verbose: bool = True) -> OptimizationHistory:
+    def optimize(
+        self,
+        verbose: bool = True,
+        output_dir: Optional[str] = None,
+    ) -> OptimizationHistory:
         """Run the full optimization loop.
 
         Args:
             verbose: Whether to print progress
+            output_dir: Optional directory to save results. If provided, creates:
+                - manifest.json: Optimization configuration and search space
+                - results.json: Final optimization results
+                - simulations/: Directory with individual simulation results
 
         Returns:
             OptimizationHistory containing all results
         """
+        # Set up output directory if requested
+        sim_output_dir = None
+        if output_dir is not None:
+            output_path = Path(output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            # Create simulations subdirectory
+            sim_output_dir = output_path / "simulations"
+            sim_output_dir.mkdir(exist_ok=True)
+
+            # Write manifest
+            self._write_manifest(output_path)
+
         total_iterations = self.n_initial + self.n_iterations
+        optimization_start = time.time()
 
         for i in range(total_iterations):
             if verbose:
@@ -255,19 +281,182 @@ class BaseOptimizer(ABC):
             suggestions = self.suggest(n_suggestions=1)
             params = suggestions[0]
 
-            # Evaluate
+            # Evaluate with timing
+            iter_start = time.time()
             result = self.objective.evaluate(params)
+            iter_duration = time.time() - iter_start
+
+            # Store timing in result metadata
+            result.metadata["duration_seconds"] = iter_duration
+            result.metadata["iteration"] = i
+
             self.history.add(result)
+
+            # Save simulation result if output_dir specified
+            if sim_output_dir is not None:
+                self._save_simulation_result(sim_output_dir, i, result)
 
             # Update optimizer
             self.tell(params, result.score)
 
             if verbose:
-                print(f"  Score: {result.score:.4f}")
+                print(f"  Score: {result.score:.4f} ({iter_duration:.1f}s)")
                 if self.history.best_result:
                     print(f"  Best so far: {self.history.best_result.score:.4f}")
 
+        self._total_duration = time.time() - optimization_start
+
+        # Write final results
+        if output_dir is not None:
+            self._write_final_results(Path(output_dir))
+
         return self.history
+
+    def _write_manifest(self, output_path: Path) -> None:
+        """Write optimization manifest to output directory."""
+        manifest = {
+            "created_at": datetime.now().isoformat(),
+            "optimizer_type": self.__class__.__name__,
+            "n_initial": self.n_initial,
+            "n_iterations": self.n_iterations,
+            "total_iterations": self.n_initial + self.n_iterations,
+            "search_space": self._serialize_search_space(),
+            "objective_config": self._serialize_objective_config(),
+        }
+
+        manifest_path = output_path / "manifest.json"
+        with open(manifest_path, "w") as f:
+            json.dump(manifest, f, indent=2)
+
+    def _serialize_search_space(self) -> Dict[str, Any]:
+        """Serialize search space for manifest."""
+        params = []
+        for p in self.search_space.parameters:
+            param_dict = {"name": p.name, "type": p.param_type.value}
+            if hasattr(p, "low"):
+                param_dict["low"] = p.low
+            if hasattr(p, "high"):
+                param_dict["high"] = p.high
+            if hasattr(p, "step"):
+                param_dict["step"] = p.step
+            if hasattr(p, "choices"):
+                param_dict["choices"] = p.choices
+            if hasattr(p, "candidates"):
+                param_dict["candidates"] = p.candidates
+            params.append(param_dict)
+        return {"parameters": params}
+
+    def _serialize_objective_config(self) -> Dict[str, Any]:
+        """Serialize objective config for manifest."""
+        config = self.objective.config
+        return {
+            "target_phase": config.target_phase,
+            "scorer_type": config.scorer_type.value,
+            "simulation_size": config.simulation_size,
+            "num_realizations": config.num_realizations,
+            "live_compress": config.live_compress,
+            "compress_freq": config.compress_freq,
+        }
+
+    def _save_simulation_result(
+        self, sim_dir: Path, iteration: int, result: "OptimizationResult"
+    ) -> None:
+        """Save a single simulation result and generate phase plot."""
+        if result.result_doc is None:
+            return
+
+        # Save the result doc
+        result_path = sim_dir / f"iteration_{iteration:03d}.json"
+        result.result_doc.to_file(str(result_path))
+
+        # Generate mass fraction plot
+        try:
+            self._generate_phase_plot(sim_dir, iteration, result)
+        except Exception as e:
+            print(f"Warning: Could not generate phase plot for iteration {iteration}: {e}")
+
+    def _generate_phase_plot(
+        self, sim_dir: Path, iteration: int, result: "OptimizationResult"
+    ) -> None:
+        """Generate mass fraction vs reaction coordinate plot."""
+        from ..analysis.bulk_reaction_analyzer import BulkReactionAnalyzer
+        from ..analysis.visualization.reaction_plotter import ReactionPlotter
+        from ..analysis.visualization.phase_trace_calculator import PhaseTraceConfig
+
+        # Create analyzer and plotter with 1% threshold to show all significant phases
+        analyzer = BulkReactionAnalyzer.from_result_doc(result.result_doc)
+        trace_config = PhaseTraceConfig(minimum_required_prevalence=0.01)
+        plotter = ReactionPlotter(analyzer, trace_config=trace_config, include_heating_trace=True)
+
+        # Generate mass fraction plot
+        fig = plotter.plot_mass_fractions()
+
+        # Add title with params
+        params = result.parameters
+        title_parts = [f"Iteration {iteration}"]
+        if "hold_temp" in params:
+            title_parts.append(f"{params['hold_temp']}K")
+        title_parts.append(f"Score: {result.score:.4f}")
+        fig.update_layout(title=" | ".join(title_parts))
+
+        # Save as PNG
+        plot_path = sim_dir / f"iteration_{iteration:03d}_phases.png"
+        fig.write_image(str(plot_path), scale=2)
+
+    def _write_final_results(self, output_path: Path) -> None:
+        """Write final optimization results and generate plots."""
+        # Compute timing stats
+        durations = [r.metadata.get("duration_seconds", 0) for r in self.history.results]
+        total_duration = getattr(self, "_total_duration", sum(durations))
+
+        results_data = {
+            "best_score": self.history.best_result.score if self.history.best_result else None,
+            "best_params": self.history.best_result.parameters if self.history.best_result else None,
+            "timing": {
+                "total_seconds": total_duration,
+                "mean_iteration_seconds": sum(durations) / len(durations) if durations else 0,
+                "min_iteration_seconds": min(durations) if durations else 0,
+                "max_iteration_seconds": max(durations) if durations else 0,
+            },
+            "all_results": [
+                {
+                    "score": r.score,
+                    "params": r.parameters,
+                    "duration_seconds": r.metadata.get("duration_seconds"),
+                }
+                for r in self.history.results
+            ],
+        }
+
+        results_path = output_path / "results.json"
+        with open(results_path, "w") as f:
+            json.dump(results_data, f, indent=2)
+
+        # Generate plots
+        self._generate_plots(output_path, results_data["all_results"])
+
+    def _generate_plots(self, output_path: Path, results: List[Dict[str, Any]]) -> None:
+        """Generate optimization plots."""
+        from .plotting import (
+            plot_optimization_summary,
+            plot_parameter_grid,
+        )
+
+        target_phase = self.objective.config.target_phase
+
+        # Summary plot
+        try:
+            fig = plot_optimization_summary(results, target_phase=target_phase)
+            fig.write_image(str(output_path / "summary.png"), scale=2)
+        except Exception as e:
+            print(f"Warning: Could not generate summary plot: {e}")
+
+        # Parameter grid
+        try:
+            fig = plot_parameter_grid(results)
+            fig.write_image(str(output_path / "parameter_exploration.png"), scale=2)
+        except Exception as e:
+            print(f"Warning: Could not generate parameter plot: {e}")
 
     def optimize_batch(
         self, batch_size: int = 1, verbose: bool = True

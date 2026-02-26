@@ -72,6 +72,43 @@ from .utilities import (
 from .bayesian import BayesianOptimizer, RecipeBayesianOptimizer
 from .genetic import GeneticAlgorithmOptimizer
 
+# Plotting
+from .plotting import (
+    plot_optimization_trajectory,
+    plot_parameter_exploration,
+    plot_parameter_grid,
+    plot_categorical_comparison,
+    plot_optimization_summary,
+    load_results_from_json,
+)
+
+# Precursor selection (literature-grounded)
+from .precursor_selection import (
+    RecipeTemplate,
+    generate_recipe_templates,
+    suggest_recipes,
+    suggest_recipes_from_literature,
+    filter_templates_by_literature,
+    PRACTICAL_PRECURSORS,
+)
+
+# Synthesis data (text-mined literature)
+from .synthesis_data import (
+    SynthesisRecord,
+    SynthesisDataset,
+    load_synthesis_dataset,
+    get_practical_precursors,
+)
+
+# Thermodynamic scoring (ARROWS integration)
+from .thermodynamic_scoring import (
+    ThermodynamicScore,
+    ARROWSIntegration,
+    get_precursor_sets_arrows,
+    score_template_combined,
+    rank_templates_combined,
+)
+
 
 __all__ = [
     # Base classes
@@ -102,4 +139,29 @@ __all__ = [
     "BayesianOptimizer",
     "RecipeBayesianOptimizer",
     "GeneticAlgorithmOptimizer",
+    # Plotting
+    "plot_optimization_trajectory",
+    "plot_parameter_exploration",
+    "plot_parameter_grid",
+    "plot_categorical_comparison",
+    "plot_optimization_summary",
+    "load_results_from_json",
+    # Precursor selection
+    "RecipeTemplate",
+    "generate_recipe_templates",
+    "suggest_recipes",
+    "suggest_recipes_from_literature",
+    "filter_templates_by_literature",
+    "PRACTICAL_PRECURSORS",
+    # Synthesis data
+    "SynthesisRecord",
+    "SynthesisDataset",
+    "load_synthesis_dataset",
+    "get_practical_precursors",
+    # Thermodynamic scoring
+    "ThermodynamicScore",
+    "ARROWSIntegration",
+    "get_precursor_sets_arrows",
+    "score_template_combined",
+    "rank_templates_combined",
 ]

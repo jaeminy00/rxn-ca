@@ -17,12 +17,14 @@ from .base import (
 class SearchSpace:
     """Defines the parameter space for optimization with a fluent builder API.
 
+    The heating profile is: ramp from 300K to hold_temp in 100K steps, then hold.
+
     Example:
         search_space = (SearchSpace()
-            .add_temperature_range(800, 1400, step=50)
-            .add_hold_time_range(1, 15)
-            .add_ramp_rate_range(5.0, 20.0)
-            .add_precursor_slot("Ba_source", ["BaCO3", "BaO", "Ba(OH)2"])
+            .add_temperature_range(800, 1400, step=100)  # Plateau temperature
+            .add_hold_time_range(5, 15)                  # Time at plateau
+            .add_ramp_step_time_range(1, 3)              # Time at each ramp step
+            .add_precursor_slot("Ba_source", ["BaCO3", "BaO"])
             .add_precursor_ratio("Ba_source", 0.4, 0.6)
         )
     """
@@ -42,15 +44,15 @@ class SearchSpace:
         self,
         low: float,
         high: float,
-        step: float = 50,
+        step: float = 100,
         name: str = "hold_temp",
     ) -> "SearchSpace":
-        """Add a hold temperature parameter.
+        """Add a plateau temperature parameter.
 
         Args:
             low: Minimum temperature (K)
             high: Maximum temperature (K)
-            step: Temperature step size (default 50K)
+            step: Temperature step size (default 100K)
             name: Parameter name (default "hold_temp")
 
         Returns:
@@ -61,40 +63,40 @@ class SearchSpace:
 
     def add_hold_time_range(
         self,
-        low: float,
-        high: float,
+        low: int,
+        high: int,
         name: str = "hold_time",
     ) -> "SearchSpace":
-        """Add a hold time parameter.
+        """Add a plateau hold time parameter.
 
         Args:
-            low: Minimum hold time (simulation steps)
-            high: Maximum hold time (simulation steps)
+            low: Minimum time at plateau (simulation steps)
+            high: Maximum time at plateau (simulation steps)
             name: Parameter name (default "hold_time")
 
         Returns:
             self for method chaining
         """
-        param = ContinuousParameter(name=name, low=low, high=high)
+        param = DiscreteParameter(name=name, low=low, high=high, step=1)
         return self._add_parameter(param)
 
-    def add_ramp_rate_range(
+    def add_ramp_step_time_range(
         self,
-        low: float,
-        high: float,
-        name: str = "ramp_rate",
+        low: int,
+        high: int,
+        name: str = "ramp_step_time",
     ) -> "SearchSpace":
-        """Add a ramp rate parameter (heating rate in K/step).
+        """Add a ramp step time parameter (time at each 100K step during ramp).
 
         Args:
-            low: Minimum ramp rate (K/step)
-            high: Maximum ramp rate (K/step)
-            name: Parameter name (default "ramp_rate")
+            low: Minimum time at each ramp step (simulation steps)
+            high: Maximum time at each ramp step (simulation steps)
+            name: Parameter name (default "ramp_step_time")
 
         Returns:
             self for method chaining
         """
-        param = ContinuousParameter(name=name, low=low, high=high)
+        param = DiscreteParameter(name=name, low=low, high=high, step=1)
         return self._add_parameter(param)
 
     def add_precursor_slot(

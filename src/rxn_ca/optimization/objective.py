@@ -38,12 +38,18 @@ class ObjectiveConfig:
         simulation_size: Grid size for the CA simulation
         num_realizations: Number of simulation runs to average
         cache_results: Whether to cache results to avoid re-evaluation
+        live_compress: Store full state snapshots during simulation instead of diffs.
+            This avoids slow O(n) reconstruction during analysis. Default True.
+        compress_freq: Interval for storing frames when live_compress is True.
+            Default 500 provides good resolution while keeping memory reasonable.
     """
     target_phase: str
     scorer_type: ScorerType = ScorerType.FINAL
     simulation_size: int = 10
     num_realizations: int = 3
     cache_results: bool = True
+    live_compress: bool = True
+    compress_freq: int = 50
 
 
 class ObjectiveFunction:
@@ -157,6 +163,8 @@ class ObjectiveFunction:
                 reaction_lib=self.reaction_lib,
                 phase_set=self.phase_set,
                 existing_lib=existing_lib,
+                compress_freq=self.config.compress_freq,
+                live_compress=self.config.live_compress,
             )
         else:
             result_doc = run_single_sim(
@@ -165,6 +173,8 @@ class ObjectiveFunction:
                 reaction_lib=self.reaction_lib,
                 phase_set=self.phase_set,
                 existing_lib=existing_lib,
+                compress_freq=self.config.compress_freq,
+                live_compress=self.config.live_compress,
             )
 
         # Update cumulative library with newly scored temps
