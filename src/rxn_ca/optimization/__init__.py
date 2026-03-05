@@ -82,14 +82,25 @@ from .plotting import (
     load_results_from_json,
 )
 
-# Precursor selection (literature-grounded)
+# Precursor selection
 from .precursor_selection import (
     RecipeTemplate,
+    AnionType,
+    COMMON_ANION_TYPES,
+    DEFAULT_PRECURSOR_ANIONS,
+    METATHESIS_ANIONS,
+    METATHESIS_COUNTER_CATIONS,
     generate_recipe_templates,
+    generate_practical_precursors,
+    generate_metathesis_sources,
+    generate_precursor_formula,
+    get_oxidation_states,
+    get_expanded_elements,
+    get_practical_precursor_set,
     suggest_recipes,
     suggest_recipes_from_literature,
     filter_templates_by_literature,
-    PRACTICAL_PRECURSORS,
+    filter_practical_templates,
 )
 
 # Synthesis data (text-mined literature)
@@ -148,11 +159,22 @@ __all__ = [
     "load_results_from_json",
     # Precursor selection
     "RecipeTemplate",
+    "AnionType",
+    "COMMON_ANION_TYPES",
+    "DEFAULT_PRECURSOR_ANIONS",
+    "METATHESIS_ANIONS",
+    "METATHESIS_COUNTER_CATIONS",
     "generate_recipe_templates",
+    "generate_practical_precursors",
+    "generate_metathesis_sources",
+    "generate_precursor_formula",
+    "get_oxidation_states",
+    "get_expanded_elements",
+    "get_practical_precursor_set",
     "suggest_recipes",
     "suggest_recipes_from_literature",
     "filter_templates_by_literature",
-    "PRACTICAL_PRECURSORS",
+    "filter_practical_templates",
     # Synthesis data
     "SynthesisRecord",
     "SynthesisDataset",

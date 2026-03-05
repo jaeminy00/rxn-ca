@@ -4,19 +4,337 @@ This module provides utilities for automatically generating valid precursor
 combinations (recipe templates) for a target phase based on element coverage
 and stoichiometric constraints.
 
-Hypotheses to explore:
-1. Recipe templates can be computed by finding phase combinations that cover
-   required elements (excluding O which comes from oxides)
-2. Number of precursors (2 or 3) should be a hyperparameter
-3. Stoichiometric feasibility can filter impractical combinations
-4. Practicality scoring can prioritize common/stable precursors
+Key features:
+1. Programmatic precursor generation from oxidation states and anion types
+2. Element coverage analysis for recipe templates
+3. Support for metathesis (salt exchange) reactions
+4. Integration with literature data and thermodynamic scoring
 """
 
 from dataclasses import dataclass, field
 from itertools import combinations
+from math import gcd
 from typing import Dict, List, Optional, Set, Tuple
 
-from pymatgen.core import Composition
+from pymatgen.core import Composition, Element
+
+
+# =============================================================================
+# Anion types for precursor generation
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class AnionType:
+    """Definition of an anion type for precursor generation.
+
+    Attributes:
+        name: Human-readable name (e.g., "carbonate")
+        formula: Chemical formula of the anion (e.g., "CO3")
+        charge: Ionic charge (negative integer, e.g., -2)
+        elements: Set of elements introduced by this anion (for element expansion)
+    """
+
+    name: str
+    formula: str
+    charge: int
+    elements: frozenset
+
+    def __post_init__(self):
+        if self.charge >= 0:
+            raise ValueError(f"Anion charge must be negative, got {self.charge}")
+
+
+# Common anion types for solid-state synthesis precursors
+COMMON_ANION_TYPES: List[AnionType] = [
+    # Direct precursors (decompose to give oxide + gas)
+    AnionType("oxide", "O", -2, frozenset({"O"})),
+    AnionType("peroxide", "O2", -2, frozenset({"O"})),
+    AnionType("carbonate", "CO3", -2, frozenset({"C", "O"})),
+    AnionType("nitrate", "NO3", -1, frozenset({"N", "O"})),
+    AnionType("hydroxide", "OH", -1, frozenset({"O", "H"})),
+    AnionType("acetate", "C2H3O2", -1, frozenset({"C", "H", "O"})),
+    # Metathesis salts (halides)
+    AnionType("chloride", "Cl", -1, frozenset({"Cl"})),
+    AnionType("bromide", "Br", -1, frozenset({"Br"})),
+    AnionType("iodide", "I", -1, frozenset({"I"})),
+    AnionType("fluoride", "F", -1, frozenset({"F"})),
+    # Other useful anions
+    AnionType("sulfate", "SO4", -2, frozenset({"S", "O"})),
+    AnionType("oxalate", "C2O4", -2, frozenset({"C", "O"})),
+    AnionType("phosphate", "PO4", -3, frozenset({"P", "O"})),
+]
+
+# Default anion types for typical solid-state synthesis
+DEFAULT_PRECURSOR_ANIONS: List[str] = ["oxide", "carbonate", "hydroxide", "nitrate"]
+
+# Anion types useful for metathesis reactions
+METATHESIS_ANIONS: List[str] = ["chloride", "bromide", "nitrate", "sulfate", "acetate"]
+
+# Counter-cations for metathesis reactions (provide leaving groups)
+# Maps cation symbol to its oxidation state
+METATHESIS_COUNTER_CATIONS: Dict[str, int] = {
+    "Na": 1,
+    "K": 1,
+    "Li": 1,
+    "NH4": 1,  # Ammonium - decomposes to NH3 + H+
+    "Cs": 1,
+}
+
+
+# =============================================================================
+# Precursor formula generation
+# =============================================================================
+
+
+def get_oxidation_states(element: str) -> Tuple[int, ...]:
+    """Get common oxidation states for an element using pymatgen.
+
+    Args:
+        element: Element symbol (e.g., "Fe", "Ti")
+
+    Returns:
+        Tuple of common positive oxidation states
+
+    Examples:
+        >>> get_oxidation_states("Fe")
+        (2, 3)
+        >>> get_oxidation_states("Ba")
+        (2,)
+    """
+    el = Element(element)
+    # Filter to positive oxidation states only (for cations)
+    return tuple(ox for ox in el.common_oxidation_states if ox > 0)
+
+
+def generate_precursor_formula(
+    cation: str,
+    oxidation_state: int,
+    anion: AnionType,
+) -> str:
+    """Generate a charge-balanced precursor formula.
+
+    Args:
+        cation: Cation symbol (e.g., "Ba", "Fe", "NH4")
+        oxidation_state: Positive oxidation state of cation
+        anion: AnionType instance
+
+    Returns:
+        Charge-balanced formula string (e.g., "BaCO3", "Fe2O3", "Ba(NO3)2")
+
+    Examples:
+        >>> oxide = AnionType("oxide", "O", -2, frozenset({"O"}))
+        >>> generate_precursor_formula("Ba", 2, oxide)
+        'BaO'
+        >>> generate_precursor_formula("Fe", 3, oxide)
+        'Fe2O3'
+        >>> nitrate = AnionType("nitrate", "NO3", -1, frozenset({"N", "O"}))
+        >>> generate_precursor_formula("Ba", 2, nitrate)
+        'Ba(NO3)2'
+    """
+    if oxidation_state <= 0:
+        raise ValueError(f"Oxidation state must be positive, got {oxidation_state}")
+
+    # Calculate stoichiometric coefficients to balance charges
+    # n_cation * ox_state + n_anion * anion_charge = 0
+    anion_charge_abs = abs(anion.charge)
+    g = gcd(oxidation_state, anion_charge_abs)
+    n_cation = anion_charge_abs // g
+    n_anion = oxidation_state // g
+
+    # Format cation part
+    if n_cation == 1:
+        cation_str = cation
+    else:
+        cation_str = f"{cation}{n_cation}"
+
+    # Format anion part
+    # Polyatomic ions (more than 2 chars or contains uppercase after first) need parentheses
+    is_polyatomic = len(anion.formula) > 2 or any(
+        c.isupper() for c in anion.formula[1:]
+    )
+
+    if n_anion == 1:
+        anion_str = anion.formula
+    elif is_polyatomic:
+        anion_str = f"({anion.formula}){n_anion}"
+    else:
+        anion_str = f"{anion.formula}{n_anion}"
+
+    return cation_str + anion_str
+
+
+def get_anion_by_name(name: str) -> AnionType:
+    """Get an AnionType by its name.
+
+    Args:
+        name: Anion name (e.g., "oxide", "carbonate")
+
+    Returns:
+        Matching AnionType
+
+    Raises:
+        ValueError: If anion name not found
+    """
+    for anion in COMMON_ANION_TYPES:
+        if anion.name == name:
+            return anion
+    raise ValueError(f"Unknown anion type: {name}")
+
+
+def generate_practical_precursors(
+    element: str,
+    anion_types: Optional[List[str]] = None,
+    oxidation_states: Optional[List[int]] = None,
+) -> List[str]:
+    """Generate practical precursor formulas for a cation element.
+
+    Uses pymatgen's common_oxidation_states unless overridden.
+
+    Args:
+        element: Cation element symbol (e.g., "Ba", "Ti", "Fe")
+        anion_types: List of anion type names to use. Defaults to DEFAULT_PRECURSOR_ANIONS.
+        oxidation_states: Specific oxidation states to use. Defaults to pymatgen's common states.
+
+    Returns:
+        List of precursor formula strings
+
+    Examples:
+        >>> generate_practical_precursors("Ba")
+        ['BaO', 'BaCO3', 'Ba(OH)2', 'Ba(NO3)2']
+        >>> generate_practical_precursors("Fe")
+        ['FeO', 'Fe2O3', 'FeCO3', 'Fe2(CO3)3', 'Fe(OH)2', 'Fe(OH)3', ...]
+    """
+    if anion_types is None:
+        anion_types = DEFAULT_PRECURSOR_ANIONS
+
+    if oxidation_states is None:
+        oxidation_states = list(get_oxidation_states(element))
+
+    if not oxidation_states:
+        return []
+
+    anions = [get_anion_by_name(name) for name in anion_types]
+
+    precursors = []
+    seen = set()
+    for ox_state in oxidation_states:
+        for anion in anions:
+            formula = generate_precursor_formula(element, ox_state, anion)
+            if formula not in seen:
+                precursors.append(formula)
+                seen.add(formula)
+
+    return precursors
+
+
+def generate_metathesis_sources(
+    target_anion: str,
+    counter_cations: Optional[List[str]] = None,
+) -> List[str]:
+    """Generate counter-cation sources for metathesis reactions.
+
+    These are alkali/ammonium salts that provide anions via double displacement.
+    E.g., Na2CO3 reacts with BaCl2 to precipitate BaCO3.
+
+    Args:
+        target_anion: Name of the anion to source (e.g., "carbonate", "oxide")
+        counter_cations: Cations to use. Defaults to ["Na", "K"].
+
+    Returns:
+        List of counter-cation salt formulas
+
+    Examples:
+        >>> generate_metathesis_sources("carbonate")
+        ['Na2CO3', 'K2CO3']
+        >>> generate_metathesis_sources("hydroxide", ["Na", "K", "Li"])
+        ['NaOH', 'KOH', 'LiOH']
+    """
+    if counter_cations is None:
+        counter_cations = ["Na", "K"]
+
+    anion = get_anion_by_name(target_anion)
+
+    sources = []
+    for cation in counter_cations:
+        if cation not in METATHESIS_COUNTER_CATIONS:
+            raise ValueError(f"Unknown counter-cation: {cation}")
+        ox_state = METATHESIS_COUNTER_CATIONS[cation]
+        formula = generate_precursor_formula(cation, ox_state, anion)
+        sources.append(formula)
+
+    return sources
+
+
+def get_elements_from_anion_types(anion_types: Optional[List[str]] = None) -> Set[str]:
+    """Get all elements introduced by a set of anion types.
+
+    Args:
+        anion_types: List of anion type names. Defaults to DEFAULT_PRECURSOR_ANIONS.
+
+    Returns:
+        Set of element symbols
+    """
+    if anion_types is None:
+        anion_types = DEFAULT_PRECURSOR_ANIONS
+
+    elements: Set[str] = set()
+    for name in anion_types:
+        anion = get_anion_by_name(name)
+        elements.update(anion.elements)
+
+    return elements
+
+
+def get_expanded_elements(
+    target_phase: str,
+    anion_types: Optional[List[str]] = None,
+    include_metathesis: bool = True,
+) -> Set[str]:
+    """Get the full set of elements needed for precursor selection.
+
+    This expands beyond the target phase elements to include elements from
+    common precursor anions (e.g., C from carbonates, N from nitrates).
+
+    Use this to determine what elements to pass to get_entries().
+
+    Args:
+        target_phase: Target product formula (e.g., "BaTiO3")
+        anion_types: Anion types to consider. Defaults to DEFAULT_PRECURSOR_ANIONS.
+        include_metathesis: If True, also include elements from metathesis anions.
+
+    Returns:
+        Set of element symbols needed for get_entries()
+
+    Examples:
+        >>> get_expanded_elements("BaTiO3")
+        {'Ba', 'Ti', 'O', 'C', 'N', 'H'}
+        >>> get_expanded_elements("BaTiO3", anion_types=["oxide"])
+        {'Ba', 'Ti', 'O'}
+    """
+    # Start with target phase elements
+    target_comp = Composition(target_phase)
+    elements = {str(el) for el in target_comp.elements}
+
+    # Add elements from precursor anions
+    if anion_types is None:
+        anion_types = list(DEFAULT_PRECURSOR_ANIONS)
+
+    if include_metathesis:
+        # Add metathesis anion elements too
+        anion_types = list(set(anion_types + METATHESIS_ANIONS))
+
+    elements.update(get_elements_from_anion_types(anion_types))
+
+    # Add counter-cation elements if including metathesis
+    if include_metathesis:
+        elements.update(METATHESIS_COUNTER_CATIONS.keys())
+        # Remove NH4 as it's not a real element, add N and H instead
+        elements.discard("NH4")
+        elements.add("N")
+        elements.add("H")
+
+    return elements
 
 
 @dataclass
@@ -183,53 +501,70 @@ def filter_by_element_sources(
     return filtered
 
 
-# Common/practical precursors for various elements
-# These are phases that are typically used in solid-state synthesis
-PRACTICAL_PRECURSORS = {
-    "Ba": ["BaO", "BaCO3", "BaO2", "Ba(OH)2"],
-    "Ti": ["TiO2", "Ti2O3"],
-    "Sr": ["SrO", "SrCO3", "Sr(OH)2"],
-    "Ca": ["CaO", "CaCO3", "Ca(OH)2"],
-    "Pb": ["PbO", "PbO2"],
-    "Zr": ["ZrO2"],
-    "Fe": ["Fe2O3", "Fe3O4", "FeO"],
-    "Co": ["Co3O4", "CoO"],
-    "Ni": ["NiO"],
-    "Mn": ["MnO2", "Mn2O3", "MnO"],
-    "Al": ["Al2O3"],
-    "Si": ["SiO2"],
-    "Mg": ["MgO"],
-    "Zn": ["ZnO"],
-    "Cu": ["CuO", "Cu2O"],
-    "Li": ["Li2O", "Li2CO3"],
-    "Na": ["Na2O", "Na2CO3", "NaCl"],
-    "K": ["K2O", "K2CO3", "KCl"],
-}
+def get_practical_precursor_set(
+    elements: Optional[Set[str]] = None,
+    anion_types: Optional[List[str]] = None,
+) -> Set[str]:
+    """Generate the set of all practical precursors for given elements.
+
+    Args:
+        elements: Elements to generate precursors for. If None, uses common cations.
+        anion_types: Anion types to use. Defaults to DEFAULT_PRECURSOR_ANIONS.
+
+    Returns:
+        Set of practical precursor formula strings
+    """
+    if elements is None:
+        # Use a default set of common cations
+        elements = {
+            "Li", "Na", "K", "Mg", "Ca", "Sr", "Ba",
+            "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+            "Al", "Si", "Zr", "Nb", "Mo", "Sn", "Pb", "Bi",
+            "La", "Ce", "Nd", "Y",
+        }
+
+    practical_set: Set[str] = set()
+    for el in elements:
+        # Skip non-cation elements
+        if el in {"O", "C", "N", "H", "S", "Cl", "Br", "I", "F", "P"}:
+            continue
+        try:
+            precursors = generate_practical_precursors(el, anion_types=anion_types)
+            practical_set.update(precursors)
+        except (ValueError, KeyError):
+            # Element doesn't have known oxidation states
+            continue
+
+    return practical_set
 
 
 def score_template_practicality(
     template: RecipeTemplate,
-    practical_precursors: Optional[Dict[str, List[str]]] = None,
+    practical_set: Optional[Set[str]] = None,
+    anion_types: Optional[List[str]] = None,
 ) -> float:
     """Score a template based on how practical/common its precursors are.
+
+    A precursor is considered practical if it matches the formula pattern
+    generated by generate_practical_precursors() for its cation element.
 
     Higher score = more practical precursors.
 
     Args:
         template: RecipeTemplate to score
-        practical_precursors: Dict mapping elements to practical precursor lists.
-            Defaults to PRACTICAL_PRECURSORS.
+        practical_set: Pre-computed set of practical precursors. If None,
+            generates based on elements in the template.
+        anion_types: Anion types to consider practical. Defaults to DEFAULT_PRECURSOR_ANIONS.
 
     Returns:
         Practicality score (0.0 to 1.0)
     """
-    if practical_precursors is None:
-        practical_precursors = PRACTICAL_PRECURSORS
-
-    # Flatten practical precursors into a set
-    practical_set = set()
-    for precursors in practical_precursors.values():
-        practical_set.update(precursors)
+    if practical_set is None:
+        # Generate practical set based on elements in template
+        template_elements: Set[str] = set()
+        for precursor in template.precursors:
+            template_elements.update(get_phase_elements(precursor))
+        practical_set = get_practical_precursor_set(template_elements, anion_types)
 
     # Count how many precursors are in the practical set
     practical_count = sum(1 for p in template.precursors if p in practical_set)
@@ -240,21 +575,28 @@ def score_template_practicality(
 def filter_practical_templates(
     templates: List[RecipeTemplate],
     min_practicality: float = 0.5,
-    practical_precursors: Optional[Dict[str, List[str]]] = None,
+    anion_types: Optional[List[str]] = None,
 ) -> List[RecipeTemplate]:
     """Filter templates to keep only those with practical precursors.
 
     Args:
         templates: List of RecipeTemplates to filter
         min_practicality: Minimum practicality score (0.0 to 1.0)
-        practical_precursors: Dict mapping elements to practical precursor lists
+        anion_types: Anion types to consider practical. Defaults to DEFAULT_PRECURSOR_ANIONS.
 
     Returns:
         Filtered list of templates with practicality scores in metadata
     """
+    # Pre-compute practical set for all elements across templates
+    all_elements: Set[str] = set()
+    for template in templates:
+        for precursor in template.precursors:
+            all_elements.update(get_phase_elements(precursor))
+    practical_set = get_practical_precursor_set(all_elements, anion_types)
+
     filtered = []
     for template in templates:
-        score = score_template_practicality(template, practical_precursors)
+        score = score_template_practicality(template, practical_set)
         if score >= min_practicality:
             template.metadata["practicality_score"] = score
             filtered.append(template)
@@ -417,7 +759,8 @@ def get_practical_precursors_from_literature(
 ) -> Dict[str, List[str]]:
     """Get practical precursors for elements based on literature frequency.
 
-    This replaces the hardcoded PRACTICAL_PRECURSORS with data-driven selection.
+    This provides data-driven precursor selection based on what has been
+    observed in text-mined synthesis literature.
 
     Args:
         synthesis_dataset: SynthesisDataset instance
