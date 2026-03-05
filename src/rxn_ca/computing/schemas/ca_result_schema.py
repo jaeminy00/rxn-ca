@@ -6,6 +6,7 @@ from ...core.reaction_result import ReactionResult
 from ...reactions.reaction_library import ReactionLibrary
 from ...phases.solid_phase_set import SolidPhaseSet
 from pylattica.core.simulation_result import compress_result
+from pylattica.core import Simulation
 
 from .base_schema import BaseSchema
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ class RxnCAResultDoc(BaseSchema):
     recipe: ReactionRecipe
     results: List[ReactionResult]
     reaction_library: ReactionLibrary = None
+    final_simulation: Simulation = None
     phases: SolidPhaseSet = None
     metadata: dict = None
 
@@ -26,6 +28,7 @@ def compress_doc(result_doc: RxnCAResultDoc, num_steps=100):
                           results=compressed,
                           phases=result_doc.phases,
                           reaction_library=result_doc.reaction_library,
+                          final_simulation=result_doc.final_simulation,
                           metadata=result_doc.metadata)
 
 def get_metadata_from_results(results: List[ReactionResult]):
