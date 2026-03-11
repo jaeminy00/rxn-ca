@@ -97,7 +97,6 @@ packages = ["src/rxn_ca"]
 [tool.hatch.build.targets.sdist]
 include = [
     "/src",
-    "/bin",
 ]
 
 [dependency-groups]
