@@ -27,6 +27,8 @@ def react():
     parser.add_argument('-o', '--output-file')
     parser.add_argument('-p', '--output-dir')
     parser.add_argument('-c', '--compress', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--count-reactions', action='store_true',
+                        help='Assemble reaction choice metadata (incompatible with --compress)')
     parser.add_argument('-l', '--reaction-library-file')
     parser.add_argument('-i', '--initial-simulation-file')
 
@@ -34,6 +36,12 @@ def react():
     parser.add_argument('--store-lib', default=False, action=argparse.BooleanOptionalAction)
 
     args = parser.parse_args()
+
+    if args.compress and args.count_reactions:
+        print("Error: --compress and --count-reactions cannot be used together.")
+        print("       --compress uses live_compress which only stores frames at intervals,")
+        print("       losing most REACTION_CHOSEN values needed for --count-reactions.")
+        sys.exit(1)
 
     output_file_arg = args.output_file
     output_dir = args.output_dir
@@ -112,8 +120,9 @@ def react():
                 live_compress=use_live_compress,
             )
 
-        print("Assembling metadata from results...")
-        result_doc.metadata = get_metadata_from_results(result_doc.results)
+        if args.count_reactions:
+            print("Assembling metadata from results...")
+            result_doc.metadata = get_metadata_from_results(result_doc.results)
 
         print(f'================= SAVING RESULTS to {output_file} =================')
 
