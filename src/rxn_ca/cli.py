@@ -26,9 +26,10 @@ def react():
     parser.add_argument('-d', '--input-dir')
     parser.add_argument('-o', '--output-file')
     parser.add_argument('-p', '--output-dir')
-    parser.add_argument('-c', '--compress', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--no-compress', action='store_true',
+                        help='Disable live compression (keeps all frames)')
     parser.add_argument('--count-reactions', action='store_true',
-                        help='Assemble reaction choice metadata (incompatible with --compress)')
+                        help='Assemble reaction choice metadata (requires --no-compress)')
     parser.add_argument('-l', '--reaction-library-file')
     parser.add_argument('-i', '--initial-simulation-file')
 
@@ -37,9 +38,9 @@ def react():
 
     args = parser.parse_args()
 
-    if args.compress and args.count_reactions:
-        print("Error: --compress and --count-reactions cannot be used together.")
-        print("       --compress uses live_compress which only stores frames at intervals,")
+    if args.count_reactions and not args.no_compress:
+        print("Error: --count-reactions requires --no-compress.")
+        print("       Live compression (enabled by default) only stores frames at intervals,")
         print("       losing most REACTION_CHOSEN values needed for --count-reactions.")
         sys.exit(1)
 
@@ -95,30 +96,47 @@ def react():
 
         print(f"Choosing {output_file} as output location")
 
-        # Use live_compress when --compress is specified for fast analysis
-        use_live_compress = args.compress
-        compress_freq = 500 if use_live_compress else 1
+        # Live compression is enabled by default; --no-compress disables it
+        use_live_compress = not args.no_compress
 
         if args.single:
-            result_doc = run_single_sim(
-                recipe,
-                base_reactions=reaction_set,
-                reaction_lib=rxn_lib,
-                initial_simulation=initial_simulation,
-                phase_set=phases,
-                compress_freq=compress_freq,
-                live_compress=use_live_compress,
-            )
+            if use_live_compress:
+                result_doc = run_single_sim(
+                    recipe,
+                    base_reactions=reaction_set,
+                    reaction_lib=rxn_lib,
+                    initial_simulation=initial_simulation,
+                    phase_set=phases,
+                    compress_freq=500,
+                    live_compress=True,
+                )
+            else:
+                result_doc = run_single_sim(
+                    recipe,
+                    base_reactions=reaction_set,
+                    reaction_lib=rxn_lib,
+                    initial_simulation=initial_simulation,
+                    phase_set=phases,
+                )
         else:
-            result_doc = run_sim_parallel(
-                recipe,
-                base_reactions=reaction_set,
-                reaction_lib=rxn_lib,
-                initial_simulation=initial_simulation,
-                phase_set=phases,
-                compress_freq=compress_freq,
-                live_compress=use_live_compress,
-            )
+            if use_live_compress:
+                result_doc = run_sim_parallel(
+                    recipe,
+                    base_reactions=reaction_set,
+                    reaction_lib=rxn_lib,
+                    initial_simulation=initial_simulation,
+                    phase_set=phases,
+                    compress_freq=500,
+                    live_compress=True,
+                )
+            else:
+                result_doc = run_sim_parallel(
+                    recipe,
+                    base_reactions=reaction_set,
+                    reaction_lib=rxn_lib,
+                    initial_simulation=initial_simulation,
+                    phase_set=phases,
+                )
 
         if args.count_reactions:
             print("Assembling metadata from results...")
@@ -126,16 +144,17 @@ def react():
 
         print(f'================= SAVING RESULTS to {output_file} =================')
 
-        if args.compress:
+        if not store_lib:
+            print("Discarding reaction library...")
+            result_doc.reaction_library = None
+
+        if use_live_compress:
             # With live_compress, result is already compressed - just save it
             compressed_fpath = output_file.split(".")[0] + "_compressed.json"
-            if not store_lib:
-                print("Discarding reaction library...")
-                result_doc.reaction_library = None
             print(f"Saving compressed results to {compressed_fpath}")
             result_doc.to_file(compressed_fpath)
         else:
-            print(f"Saving original results to {output_file}...")
+            print(f"Saving full results to {output_file}...")
             result_doc.to_file(output_file)
 
 
