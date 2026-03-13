@@ -158,7 +158,7 @@ def react():
             result_doc.to_file(output_file)
 
 
-def enumerate():
+def enumerate_rxns():
     """Enumerate reactions for a chemical system."""
     from rxn_ca.phases import SolidPhaseSet
     from rxn_ca.utilities.enumerate_rxns import enumerate_rxns
@@ -237,6 +237,132 @@ def enumerate():
 
     result.to_file(output_filename)
     print(f"Saved enumerated reactions to {output_filename}")
+
+
+def suggest_precursors():
+    """Suggest precursor combinations for synthesizing a target phase."""
+    from rxn_ca.optimization.precursor_selection import (
+        get_expanded_elements,
+        suggest_recipes,
+        suggest_recipes_from_literature,
+    )
+    from rxn_ca.optimization.synthesis_data import SynthesisDataset
+    from rxn_ca.utilities.get_entries import get_entries
+
+    parser = argparse.ArgumentParser(
+        prog="suggest-precursors",
+        description="Suggest precursor combinations for a target phase",
+    )
+
+    parser.add_argument(
+        'target',
+        help='Target phase formula (e.g., BaTiO3)',
+    )
+    parser.add_argument(
+        '-n', '--n-precursors',
+        type=int,
+        default=2,
+        help='Number of precursors per template (default: 2)',
+    )
+    parser.add_argument(
+        '-m', '--max-templates',
+        type=int,
+        default=10,
+        help='Maximum number of templates to show (default: 10)',
+    )
+    parser.add_argument(
+        '-e', '--energy-cutoff',
+        type=float,
+        default=0.1,
+        help='Metastability cutoff for Materials Project query (default: 0.1 eV/atom)',
+    )
+    parser.add_argument(
+        '-l', '--literature-data',
+        type=str,
+        default=None,
+        help='Path to synthesis dataset JSON for literature-based ranking',
+    )
+    parser.add_argument(
+        '--min-frequency',
+        type=int,
+        default=5,
+        help='Minimum literature occurrences when using --literature-data (default: 5)',
+    )
+    parser.add_argument(
+        '--json',
+        action='store_true',
+        help='Output as JSON instead of human-readable format',
+    )
+
+    args = parser.parse_args()
+
+    target = args.target
+    print(f"Finding precursor combinations for: {target}", file=sys.stderr)
+
+    # Expand elements to include precursor anions (C, N, H, etc.)
+    print("Expanding element set for precursor phases...", file=sys.stderr)
+    elements = get_expanded_elements(target)
+    print(f"  Elements: {', '.join(sorted(elements))}", file=sys.stderr)
+
+    # Fetch entries from Materials Project
+    print(f"Fetching phases from Materials Project (cutoff={args.energy_cutoff} eV/atom)...", file=sys.stderr)
+    entries = get_entries(
+        elements,
+        metastability_cutoff=args.energy_cutoff,
+    )
+    available_phases = [e.composition.reduced_formula for e in entries]
+    print(f"  Found {len(available_phases)} phases", file=sys.stderr)
+
+    # Generate templates
+    if args.literature_data:
+        print(f"Loading literature data from {args.literature_data}...", file=sys.stderr)
+        dataset = SynthesisDataset.from_json_file(args.literature_data)
+        print(f"  Loaded {len(dataset.records)} synthesis records", file=sys.stderr)
+
+        templates = suggest_recipes_from_literature(
+            target_phase=target,
+            available_phases=available_phases,
+            synthesis_dataset=dataset,
+            n_precursors=args.n_precursors,
+            min_frequency=args.min_frequency,
+            max_templates=args.max_templates,
+        )
+        score_key = "literature_score"
+    else:
+        templates = suggest_recipes(
+            target_phase=target,
+            available_phases=available_phases,
+            n_precursors=args.n_precursors,
+            practical_only=True,
+            max_templates=args.max_templates,
+        )
+        score_key = "practicality_score"
+
+    # Output results
+    if args.json:
+        output = []
+        for t in templates:
+            output.append({
+                "precursors": t.precursors,
+                "target": t.target_phase,
+                "score": t.metadata.get(score_key, 0),
+                "metadata": t.metadata,
+            })
+        print(json.dumps(output, indent=2))
+    else:
+        if not templates:
+            print(f"\nNo valid precursor combinations found for {target}")
+            sys.exit(0)
+
+        print(f"\nPrecursor combinations for {target}:")
+        print("-" * 60)
+        for i, t in enumerate(templates, 1):
+            precursor_str = " + ".join(t.precursors)
+            score = t.metadata.get(score_key, 0)
+            print(f"{i:2d}. {precursor_str}")
+            print(f"    Score: {score:.2f} ({score_key.replace('_', ' ')})")
+        print("-" * 60)
+        print(f"Total: {len(templates)} combinations")
 
 
 def build_library():

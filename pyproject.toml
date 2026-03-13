@@ -77,8 +77,9 @@ workflow = [
 
 [project.scripts]
 react = "rxn_ca.cli:react"
-enumerate = "rxn_ca.cli:enumerate"
+enumerate = "rxn_ca.cli:enumerate_rxns"
 build-library = "rxn_ca.cli:build_library"
+suggest-precursors = "rxn_ca.cli:suggest_precursors"
 
 [project.urls]
 Homepage = "https://github.com/mcgalcode/rxn-ca"
