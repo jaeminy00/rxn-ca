@@ -124,11 +124,11 @@ dumpfn(reaction_library, "reaction_library.json")
 With the recipe and reaction library files ready, run the simulation using the `react` CLI:
 
 ```bash
-react spinel_recipe.json -l reaction_library.json -o output.json --compress
+react spinel_recipe.json -l reaction_library.json -o output.json
 ```
 
-!!! tip "Compression"
-    Always use `--compress` to reduce output file size to a manageable level.
+!!! note "Live Compression"
+    Compression is enabled by default to keep output file sizes manageable. The output will be saved as `output_compressed.json`. Use `--no-compress` if you need all frames (e.g., for `--count-reactions`).
 
 ## 7. Analyze Results
 
@@ -204,5 +204,5 @@ reaction_library = get_scored_rxns(
 recipe.to_file("spinel_recipe.json")
 dumpfn(reaction_library, "reaction_library.json")
 
-# Run: react spinel_recipe.json -l reaction_library.json -o output.json --compress
+# Run: react spinel_recipe.json -l reaction_library.json -o output.json
 ```

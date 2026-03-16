@@ -20,15 +20,23 @@ react <recipe_file> -l <library_file> -o <output_file> [options]
 
 | Option | Description |
 |--------|-------------|
-| `-l, --library` | Path to the reaction library JSON file |
-| `-o, --output` | Output file path |
-| `--compress` | Compress output (recommended) |
+| `-l, --reaction-library-file` | Path to the reaction library JSON file (required) |
+| `-o, --output-file` | Output file path |
+| `-d, --input-dir` | Input directory for batch processing |
+| `-p, --output-dir` | Output directory |
+| `-s, --single` | Run single simulation (no parallelization) |
+| `-i, --initial-simulation-file` | Path to initial simulation state |
+| `--no-compress` | Disable live compression (keeps all frames) |
+| `--count-reactions` | Assemble reaction choice metadata (requires `--no-compress`) |
+| `--store-lib / --no-store-lib` | Include reaction library in output |
 
 ### Example
 
 ```bash
-react spinel_recipe.json -l reaction_library.json -o output.json --compress
+react spinel_recipe.json -l reaction_library.json -o output.json
 ```
+
+Live compression is enabled by default, saving output as `*_compressed.json`.
 
 ## enumerate
 
