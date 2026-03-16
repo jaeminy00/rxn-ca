@@ -902,11 +902,11 @@
 </code></pre></div>
 <h2 id="6-run-the-simulation">6. Run the Simulation<a class="headerlink" href="#6-run-the-simulation" title="Permanent link">&para;</a></h2>
 <p>With the recipe and reaction library files ready, run the simulation using the <code>react</code> CLI:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>react<span class="w"> </span>spinel_recipe.json<span class="w"> </span>-l<span class="w"> </span>reaction_library.json<span class="w"> </span>-o<span class="w"> </span>output.json<span class="w"> </span>--compress
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>react<span class="w"> </span>spinel_recipe.json<span class="w"> </span>-l<span class="w"> </span>reaction_library.json<span class="w"> </span>-o<span class="w"> </span>output.json
 </code></pre></div>
-<div class="admonition tip">
-<p class="admonition-title">Compression</p>
-<p>Always use <code>--compress</code> to reduce output file size to a manageable level.</p>
+<div class="admonition note">
+<p class="admonition-title">Live Compression</p>
+<p>Compression is enabled by default to keep output file sizes manageable. The output will be saved as <code>output_compressed.json</code>. Use <code>--no-compress</code> if you need all frames (e.g., for <code>--count-reactions</code>).</p>
 </div>
 <h2 id="7-analyze-results">7. Analyze Results<a class="headerlink" href="#7-analyze-results" title="Permanent link">&para;</a></h2>
 <p>Visualize the evolution of phase amounts over the course of the reaction:</p>
@@ -974,7 +974,7 @@
 <a id="__codelineno-9-47" name="__codelineno-9-47" href="#__codelineno-9-47"></a><span class="n">recipe</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="s2">&quot;spinel_recipe.json&quot;</span><span class="p">)</span>
 <a id="__codelineno-9-48" name="__codelineno-9-48" href="#__codelineno-9-48"></a><span class="n">dumpfn</span><span class="p">(</span><span class="n">reaction_library</span><span class="p">,</span> <span class="s2">&quot;reaction_library.json&quot;</span><span class="p">)</span>
 <a id="__codelineno-9-49" name="__codelineno-9-49" href="#__codelineno-9-49"></a>
-<a id="__codelineno-9-50" name="__codelineno-9-50" href="#__codelineno-9-50"></a><span class="c1"># Run: react spinel_recipe.json -l reaction_library.json -o output.json --compress</span>
+<a id="__codelineno-9-50" name="__codelineno-9-50" href="#__codelineno-9-50"></a><span class="c1"># Run: react spinel_recipe.json -l reaction_library.json -o output.json</span>
 </code></pre></div>
 
 

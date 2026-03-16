@@ -829,22 +829,47 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-l, --library</code></td>
-<td>Path to the reaction library JSON file</td>
+<td><code>-l, --reaction-library-file</code></td>
+<td>Path to the reaction library JSON file (required)</td>
 </tr>
 <tr>
-<td><code>-o, --output</code></td>
+<td><code>-o, --output-file</code></td>
 <td>Output file path</td>
 </tr>
 <tr>
-<td><code>--compress</code></td>
-<td>Compress output (recommended)</td>
+<td><code>-d, --input-dir</code></td>
+<td>Input directory for batch processing</td>
+</tr>
+<tr>
+<td><code>-p, --output-dir</code></td>
+<td>Output directory</td>
+</tr>
+<tr>
+<td><code>-s, --single</code></td>
+<td>Run single simulation (no parallelization)</td>
+</tr>
+<tr>
+<td><code>-i, --initial-simulation-file</code></td>
+<td>Path to initial simulation state</td>
+</tr>
+<tr>
+<td><code>--no-compress</code></td>
+<td>Disable live compression (keeps all frames)</td>
+</tr>
+<tr>
+<td><code>--count-reactions</code></td>
+<td>Assemble reaction choice metadata (requires <code>--no-compress</code>)</td>
+</tr>
+<tr>
+<td><code>--store-lib / --no-store-lib</code></td>
+<td>Include reaction library in output</td>
 </tr>
 </tbody>
 </table>
 <h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>react<span class="w"> </span>spinel_recipe.json<span class="w"> </span>-l<span class="w"> </span>reaction_library.json<span class="w"> </span>-o<span class="w"> </span>output.json<span class="w"> </span>--compress
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>react<span class="w"> </span>spinel_recipe.json<span class="w"> </span>-l<span class="w"> </span>reaction_library.json<span class="w"> </span>-o<span class="w"> </span>output.json
 </code></pre></div>
+<p>Live compression is enabled by default, saving output as <code>*_compressed.json</code>.</p>
 <h2 id="enumerate">enumerate<a class="headerlink" href="#enumerate" title="Permanent link">&para;</a></h2>
 <p>Enumerate reactions for a chemical system.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>enumerate<span class="w"> </span>&lt;chem_sys&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
