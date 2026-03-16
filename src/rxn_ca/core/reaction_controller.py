@@ -30,18 +30,27 @@ class ReactionController(BasicController):
     def get_neighborhood_from_structure(cls, structure: PeriodicStructure):
         return cls.get_neighborhood_builder_from_structure(structure).get(structure)
 
-    def __init__(self,
+    def __init__(
+        self,
         structure: PeriodicStructure,
         rxn_calculator: ReactionCalculator,
+        compress_freq: int = 1,
+        live_compress: bool = False,
     ) -> None:
         self.reaction_calculator = rxn_calculator
         self.structure = structure
+        self.compress_freq = compress_freq
+        self.live_compress = live_compress
 
     def set_rxn_set(self, rxn_set: ScoredReactionSet):
         self.reaction_calculator.set_rxn_set(rxn_set)
 
     def instantiate_result(self, starting_state: SimulationState):
-        return ReactionResult(starting_state)
+        return ReactionResult(
+            starting_state,
+            compress_freq=self.compress_freq,
+            live_compress=self.live_compress,
+        )
 
     def get_state_update(self, site_id: int, prev_state: SimulationState):
         return self.reaction_calculator.get_state_update(site_id, prev_state)

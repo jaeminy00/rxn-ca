@@ -1,0 +1,117 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rxn-ca"
+description = "A library for implementing lattice automata for solid-state reaction simulation"
+readme = "README.md"
+license = "BSD-3-Clause"
+authors = [
+    { name = "Max Gallant", email = "mcgallant72@gmail.com" }
+]
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "numpy>=1.21.5",
+    "matplotlib>=3.5.1",
+    "tqdm>=4.63.0",
+    "reaction-network @ git+https://github.com/mcgalcode/reaction-network",
+    "pymatgen>=2022.3.29",
+    "plotly>=5.6.0",
+    "monty",
+    "pydantic",
+    "mp-api",
+    "pylattica>=0.1.4",
+    "pandas",
+    "executing",
+    "importlib-resources>=5.0; python_version<'3.9'",
+]
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "pymdown-extensions>=10.0",
+]
+tests = [
+    "pytest>=7.1.3",
+    "pytest-cov>=4.0.0",
+    "pydot>=1.4.2",
+]
+dev = [
+    "pre-commit>=2.12.1",
+]
+vis = [
+    "matplotlib",
+    "pydot",
+]
+optimization = [
+    "baybe>=0.8.0",
+    "deap>=1.4.0",
+]
+optimization-chem = [
+    "baybe[chem]>=0.8.0",
+    "deap>=1.4.0",
+]
+workflow = [
+    "jobflow>=0.1.14",
+]
+
+[project.scripts]
+react = "rxn_ca.cli:react"
+enumerate = "rxn_ca.cli:enumerate_rxns"
+build-library = "rxn_ca.cli:build_library"
+suggest-precursors = "rxn_ca.cli:suggest_precursors"
+
+[project.urls]
+Homepage = "https://github.com/mcgalcode/rxn-ca"
+Repository = "https://github.com/mcgalcode/rxn-ca"
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.1.0.dev0"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rxn_ca"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.1.3",
+    "pytest-cov>=4.0.0",
+    "pre-commit>=2.12.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]

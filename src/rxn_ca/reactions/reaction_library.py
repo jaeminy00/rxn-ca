@@ -86,7 +86,28 @@ class ReactionLibrary(MSONable):
     @property
     def temps(self):
         return list(self.lib.keys())
-    
+
+    def has_temp(self, temp: int) -> bool:
+        """Check if reactions at a temperature are already scored."""
+        return int(temp) in self.lib
+
+    def merge(self, other: "ReactionLibrary") -> "ReactionLibrary":
+        """Merge another library into this one, adding any missing temperatures.
+
+        Args:
+            other: Another ReactionLibrary with the same phase set
+
+        Returns:
+            Self, for chaining
+        """
+        for temp, rxn_set in other.lib.items():
+            if temp not in self.lib:
+                self.lib[temp] = rxn_set
+        return self
+
+    def get_missing_temps(self, temps: List[int]) -> List[int]:
+        """Return temperatures from the list that aren't in this library."""
+        return [int(t) for t in temps if int(t) not in self.lib]
 
     def as_dict(self):
         sup = {"@module": self.__class__.__module__, "@class": self.__class__.__name__}

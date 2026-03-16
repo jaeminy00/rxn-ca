@@ -1,6 +1,7 @@
 from rxn_network.entries.entry_set import GibbsEntrySet
 from rxn_network.entries.utils import process_entries
 from mp_api.client import MPRester
+from pymatgen.core import Composition
 from rxn_ca.phases import SolidPhaseSet
 from rxn_ca.phases.utils import remove_phases_from_entry_set, remove_theoretical_phases
 
@@ -38,8 +39,21 @@ def get_entries(chem_sys: str,
     stable_entries = entry_set.filter_by_stability(metastability_cutoff)
 
     if exclude_theoretical_phases:
-        solid_phase_set = SolidPhaseSet.from_entry_set(stable_entries)        
-        return remove_theoretical_phases(stable_entries, solid_phase_set)
+        solid_phase_set = SolidPhaseSet.from_entry_set(stable_entries)
+        filtered = remove_theoretical_phases(stable_entries, solid_phase_set)
+
+        # Re-add any ensure_phases that were removed by the theoretical filter
+        # (they may be marked theoretical in MP but we know they're real)
+        if ensure_phases:
+            # Normalize to reduced formulas for consistent matching (e.g., NH4Cl -> H4NCl)
+            ensure_set = {Composition(f).reduced_formula for f in ensure_phases}
+            filtered_formulas = {e.composition.reduced_formula for e in filtered}
+            for e in stable_entries:
+                formula = e.composition.reduced_formula
+                if formula in ensure_set and formula not in filtered_formulas:
+                    filtered.add(e)
+
+        return filtered
     else:
         return stable_entries
 

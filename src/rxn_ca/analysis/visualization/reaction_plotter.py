@@ -147,7 +147,6 @@ class ReactionPlotter():
                    matter_phases: List[MatterPhase] = None,
                    **plotting_kwargs) -> None:
         phase_traces = self.trace_calculator.get_general_traces(self.trace_config, quantity, mode, matter_phases=matter_phases)
-        print(len(phase_traces))
         fig = self._get_basic_phase_trace_fig(
             title,
             ylabel,

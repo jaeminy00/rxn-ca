@@ -10,7 +10,7 @@ from typing import List, Dict, Any
 
 import executing
 import itertools
-import pkg_resources
+from importlib.resources import files
 import pandas as pd
 from monty.serialization import loadfn
 from .gasses import DEFAULT_GASES
@@ -474,7 +474,7 @@ def get_melting_points(phases: List[str]) -> Dict[str, float]:
     Returns:
         Dict[str, float]: A map of formula to melting point
     """
-    mp_json = pkg_resources.resource_filename("rxn_ca.reactions", "melting_points_df_08_08_23.json")
+    mp_json = str(files("rxn_ca.reactions").joinpath("melting_points_df_08_08_23.json"))
     melting_pt_data = pd.DataFrame(loadfn(mp_json))   # Note: temps in Kelvin
     mps = {}
     unknown_phases = []

@@ -6,7 +6,7 @@ from .scored_reaction import ScoredReaction
 import numpy as np
 import pandas as pd
 import warnings
-import pkg_resources
+from importlib.resources import files
 
 from ..phases.solid_phase_set import SolidPhaseSet
 from pymatgen.core import Composition
@@ -314,17 +314,15 @@ def get_fluxes_across_interface(interface : list, L_data : pd.DataFrame, tempera
 def load_diffusivities(chemsys : list = None, self_diffusion : bool = False):
     if chemsys in ['Ba-Ti-O', 'Ba-Ti-O-C']:
         if self_diffusion:
-            try:
-                diff_csv_path = pkg_resources.resource_filename("rxn_ca.phases", "batio_self_coeffs.csv")
-            except FileNotFoundError:
+            diff_csv_path = files("rxn_ca.phases").joinpath("batio_self_coeffs.csv")
+            if not diff_csv_path.is_file():
                 raise FileNotFoundError("Transport data is not available yet. Please contact the authors if you would like to use this feature!")
         else:
-            try:
-                diff_csv_path = pkg_resources.resource_filename("rxn_ca.phases", "batio_transport_coeffs.csv")
-            except FileNotFoundError:
+            diff_csv_path = files("rxn_ca.phases").joinpath("batio_transport_coeffs.csv")
+            if not diff_csv_path.is_file():
                 raise FileNotFoundError("Transport data is not available yet. Please contact the authors if you would like to use this feature!")
 
-    return pd.read_csv(diff_csv_path)
+    return pd.read_csv(str(diff_csv_path))
 
 def get_el_ratios(formula_string):
     return [Composition(formula_string).get_atomic_fraction(el) for el in Composition(formula_string).elements]    
