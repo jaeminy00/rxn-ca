@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://mcgalcode.github.io/rxn-ca/</loc>
+         <lastmod>2026-03-16</lastmod>
+    </url>
+    <url>
+         <loc>https://mcgalcode.github.io/rxn-ca/cli/</loc>
+         <lastmod>2026-03-16</lastmod>
+    </url>
+    <url>
+         <loc>https://mcgalcode.github.io/rxn-ca/getting-started/</loc>
+         <lastmod>2026-03-16</lastmod>
+    </url>
+    <url>
+         <loc>https://mcgalcode.github.io/rxn-ca/guides/basic-usage/</loc>
+         <lastmod>2026-03-16</lastmod>
+    </url>
+    <url>
+         <loc>https://mcgalcode.github.io/rxn-ca/guides/jobflow/</loc>
+         <lastmod>2026-03-16</lastmod>
+    </url>
+</urlset>
