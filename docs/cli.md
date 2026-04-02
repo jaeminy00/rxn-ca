@@ -74,10 +74,44 @@ suggest-precursors <target> [options]
 |----------|-------------|
 | `target` | Target phase formula (e.g., "BaTiO3") |
 
-### Example
+### Options
 
+| Option | Description |
+|--------|-------------|
+| `-n, --n-precursors` | Number of precursors per template (default: 2) |
+| `-m, --max-templates` | Maximum templates to show (default: 10) |
+| `-e, --energy-cutoff` | Metastability cutoff in eV/atom (default: 0.1) |
+| `--anions` | Comma-separated anion formulas (default: O,CO3,OH,NO3) |
+| `--metathesis` | Comma-separated metathesis anions (e.g., Cl,Br) |
+| `--counter-cations` | Comma-separated counter-cations (e.g., Na,K) |
+| `--json` | Output as JSON |
+| `-l, --literature-data` | Path to synthesis dataset for literature-based ranking |
+
+### Anion Reference
+
+| Formula | Name | Elements Added |
+|---------|------|----------------|
+| `O` | oxide | O |
+| `CO3` | carbonate | C, O |
+| `NO3` | nitrate | N, O |
+| `OH` | hydroxide | O, H |
+| `Cl` | chloride | Cl |
+| `Br` | bromide | Br |
+| `SO4` | sulfate | S, O |
+
+### Examples
+
+Basic usage with 3 precursors:
 ```bash
-suggest-precursors BaTiO3
+suggest-precursors BaTiO3 -n 3
 ```
 
-This generates practical precursor suggestions including oxides, carbonates, hydroxides, and nitrates based on the target composition.
+With chloride metathesis and sodium/potassium sources:
+```bash
+suggest-precursors Ba2ZrTiO6 -n 3 --metathesis Cl --counter-cations Na,K
+```
+
+Minimal element set (oxides and carbonates only):
+```bash
+suggest-precursors Ba2ZrTiO6 --anions O,CO3
+```

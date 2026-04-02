@@ -10,10 +10,10 @@ from rxn_ca.optimization.precursor_selection import (
     generate_precursor_formula,
     generate_practical_precursors,
     generate_metathesis_sources,
-    get_anion_by_name,
+    get_anion,
     get_oxidation_states,
     get_expanded_elements,
-    get_elements_from_anion_types,
+    get_elements_from_anions,
     get_practical_precursor_set,
     RecipeTemplate,
     generate_recipe_templates,
@@ -49,18 +49,30 @@ class TestAnionType:
         assert "carbonate" in names
         assert "chloride" in names
 
-    def test_get_anion_by_name(self):
-        oxide = get_anion_by_name("oxide")
-        assert oxide.formula == "O"
+    def test_get_anion_by_formula(self):
+        oxide = get_anion("O")
+        assert oxide.name == "oxide"
         assert oxide.charge == -2
 
-        carbonate = get_anion_by_name("carbonate")
-        assert carbonate.formula == "CO3"
+        carbonate = get_anion("CO3")
+        assert carbonate.name == "carbonate"
         assert carbonate.charge == -2
 
-    def test_get_anion_by_name_unknown(self):
-        with pytest.raises(ValueError, match="Unknown anion type"):
-            get_anion_by_name("nonexistent")
+        chloride = get_anion("Cl")
+        assert chloride.name == "chloride"
+        assert chloride.charge == -1
+
+    def test_get_anion_by_name(self):
+        # Names still work for lookup
+        oxide = get_anion("oxide")
+        assert oxide.formula == "O"
+
+        carbonate = get_anion("carbonate")
+        assert carbonate.formula == "CO3"
+
+    def test_get_anion_unknown(self):
+        with pytest.raises(ValueError, match="Unknown anion"):
+            get_anion("nonexistent")
 
 
 class TestOxidationStates:
@@ -85,52 +97,52 @@ class TestPrecursorFormulaGeneration:
     """Tests for generate_precursor_formula."""
 
     def test_simple_oxide_2plus(self):
-        oxide = get_anion_by_name("oxide")
+        oxide = get_anion("oxide")
         formula = generate_precursor_formula("Ba", 2, oxide)
         assert formula == "BaO"
 
     def test_simple_oxide_3plus(self):
-        oxide = get_anion_by_name("oxide")
+        oxide = get_anion("oxide")
         formula = generate_precursor_formula("Fe", 3, oxide)
         assert formula == "Fe2O3"
 
     def test_simple_oxide_4plus(self):
-        oxide = get_anion_by_name("oxide")
+        oxide = get_anion("oxide")
         formula = generate_precursor_formula("Ti", 4, oxide)
         assert formula == "TiO2"
 
     def test_carbonate_2plus(self):
-        carbonate = get_anion_by_name("carbonate")
+        carbonate = get_anion("carbonate")
         formula = generate_precursor_formula("Ba", 2, carbonate)
         assert formula == "BaCO3"
 
     def test_nitrate_2plus(self):
-        nitrate = get_anion_by_name("nitrate")
+        nitrate = get_anion("nitrate")
         formula = generate_precursor_formula("Ba", 2, nitrate)
         assert formula == "Ba(NO3)2"
 
     def test_nitrate_1plus(self):
-        nitrate = get_anion_by_name("nitrate")
+        nitrate = get_anion("nitrate")
         formula = generate_precursor_formula("Na", 1, nitrate)
         assert formula == "NaNO3"
 
     def test_hydroxide_2plus(self):
-        hydroxide = get_anion_by_name("hydroxide")
+        hydroxide = get_anion("hydroxide")
         formula = generate_precursor_formula("Ba", 2, hydroxide)
         assert formula == "Ba(OH)2"
 
     def test_chloride_2plus(self):
-        chloride = get_anion_by_name("chloride")
+        chloride = get_anion("chloride")
         formula = generate_precursor_formula("Ba", 2, chloride)
         assert formula == "BaCl2"
 
     def test_phosphate_3plus(self):
-        phosphate = get_anion_by_name("phosphate")
+        phosphate = get_anion("phosphate")
         formula = generate_precursor_formula("Fe", 3, phosphate)
         assert formula == "FePO4"
 
     def test_invalid_oxidation_state(self):
-        oxide = get_anion_by_name("oxide")
+        oxide = get_anion("oxide")
         with pytest.raises(ValueError, match="must be positive"):
             generate_precursor_formula("Ba", -2, oxide)
         with pytest.raises(ValueError, match="must be positive"):
@@ -199,31 +211,45 @@ class TestGetExpandedElements:
         assert "Ba" in elements
         assert "Ti" in elements
         assert "O" in elements
-        # Should include carbonate/nitrate/hydroxide elements
+        # Should include carbonate/nitrate/hydroxide elements (default anions)
         assert "C" in elements
         assert "N" in elements
         assert "H" in elements
-        # Should include metathesis counter-cations
-        assert "Na" in elements
-        assert "K" in elements
+        # Should NOT include metathesis stuff by default
+        assert "Cl" not in elements
+        assert "Na" not in elements
 
     def test_batio3_oxide_only(self):
-        elements = get_expanded_elements("BaTiO3", anion_types=["oxide"], include_metathesis=False)
+        elements = get_expanded_elements("BaTiO3", anions=["O"])
         assert elements == {"Ba", "Ti", "O"}
 
-    def test_batio3_no_metathesis(self):
-        elements = get_expanded_elements("BaTiO3", include_metathesis=False)
-        # Should include target + anion elements
+    def test_batio3_with_metathesis(self):
+        elements = get_expanded_elements(
+            "BaTiO3",
+            metathesis_anions=["Cl"],
+            counter_cations=["Na", "K"],
+        )
+        # Should include target + anion + metathesis elements
         assert "Ba" in elements
         assert "Ti" in elements
         assert "O" in elements
         assert "C" in elements  # from carbonate
-        # Should NOT include metathesis stuff
-        assert "Cl" not in elements
-        assert "Na" not in elements
+        assert "Cl" in elements  # metathesis anion
+        assert "Na" in elements  # counter-cation
+        assert "K" in elements   # counter-cation
+
+    def test_batio3_custom_anions(self):
+        elements = get_expanded_elements("BaTiO3", anions=["O", "CO3"])
+        assert "Ba" in elements
+        assert "Ti" in elements
+        assert "O" in elements
+        assert "C" in elements
+        # Should NOT include nitrate or hydroxide elements
+        assert "N" not in elements
+        assert "H" not in elements
 
     def test_elements_from_anion_types(self):
-        elements = get_elements_from_anion_types(["oxide", "carbonate"])
+        elements = get_elements_from_anions(["O", "CO3"])
         assert "O" in elements
         assert "C" in elements
         assert "Cl" not in elements
