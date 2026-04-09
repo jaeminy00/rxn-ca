@@ -84,6 +84,7 @@ def setup_reaction_library(
     metastability_cutoff: float = 0.1,
     exclude_theoretical: bool = True,
     save_to_file: bool = True,
+    **entry_kwargs
 ) -> ReactionLibraryData:
     """Set up phase set and reaction library for a chemical system.
 
@@ -111,6 +112,7 @@ def setup_reaction_library(
         ensure_phases,
         metastability_cutoff,
         exclude_theoretical,
+        **entry_kwargs
     )
 
     # Optionally save reaction library to file
