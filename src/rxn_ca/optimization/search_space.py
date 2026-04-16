@@ -295,6 +295,41 @@ class SearchSpace:
         """Get list of all parameter names."""
         return [p.name for p in self.parameters]
 
+    def as_dict(self) -> dict:
+        """Serialize to a JSON-safe dict for passing between jobflow jobs."""
+        params = []
+        for p in self.parameters:
+            d: Dict[str, Any] = {"type": p.param_type.value, "name": p.name}
+            if isinstance(p, DiscreteParameter):
+                d["low"] = p.low
+                d["high"] = p.high
+                d["step"] = p.step
+            elif isinstance(p, ContinuousParameter):
+                d["low"] = p.low
+                d["high"] = p.high
+            elif isinstance(p, PrecursorSlotParameter):
+                d["candidates"] = p.candidates
+            elif isinstance(p, CategoricalParameter):
+                d["choices"] = p.choices
+            params.append(d)
+        return {"parameters": params}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "SearchSpace":
+        """Reconstruct a SearchSpace from a serialized dict."""
+        space = cls()
+        for p in d["parameters"]:
+            ptype = p["type"]
+            if ptype == "discrete":
+                space.add_discrete(p["name"], p["low"], p["high"], p["step"])
+            elif ptype == "continuous":
+                space.add_continuous(p["name"], p["low"], p["high"])
+            elif ptype == "precursor_slot":
+                space.add_precursor_slot(p["name"], p["candidates"])
+            elif ptype == "categorical":
+                space.add_categorical(p["name"], p["choices"])
+        return space
+
     def __repr__(self) -> str:
         param_strs = []
         for p in self.parameters:

@@ -8,7 +8,7 @@ Requires the [workflow] optional dependency:
 """
 
 from .schemas import SimulationOutput, ReactionLibraryData
-from .jobs import setup_reaction_library, run_simulation
+from .jobs import setup_reaction_library, run_simulation, init_bo_campaign, bo_trial_step
 from .flows import create_simulation_flow
 
 __all__ = [
@@ -17,4 +17,6 @@ __all__ = [
     "setup_reaction_library",
     "run_simulation",
     "create_simulation_flow",
+    "init_bo_campaign",
+    "bo_trial_step",
 ]
