@@ -1,4 +1,8 @@
-"""Core jobflow jobs for rxn-ca simulations."""
+"""Jobflow jobs for rxn-ca simulations.
+
+These jobs can be used standalone or composed into flows for running
+rxn-ca simulations in workflow frameworks.
+"""
 
 from __future__ import annotations
 
