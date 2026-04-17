@@ -163,7 +163,7 @@ class BOFlowMaker(Maker):
             metastability_cutoff=self.metastability_cutoff,
             exclude_theoretical=self.exclude_theoretical,
             save_to_file=True,
-            **library_kwargs,
+            entry_kwargs=library_kwargs.get("entry_kwargs", {}),
         )
         setup_job.name = f"setup_{chemical_system}"
 

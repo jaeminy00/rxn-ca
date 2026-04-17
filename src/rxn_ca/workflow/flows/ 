@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Quick local test for the BOFlowMaker jobflow.
+
+Runs 2 initial + 2 BO trials on a tiny 5x5 grid with 1 realization.
+Uses run_locally() so no FireWorks/MongoDB needed.
+
+Usage:
+    python test_bo_flow.py
+    python test_bo_flow.py --dry-run   # just build the flow, no simulation
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from rxn_ca.optimization import SearchSpace
+from rxn_ca.workflow import BOFlowMaker
+
+
+def build_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print flow structure without running simulations.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="./test_bo_output",
+        help="Directory for trial outputs.",
+    )
+    return parser
+
+
+def main():
+    args = build_parser().parse_args()
+
+    output_dir = Path(args.output_dir).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Minimal search space — small ranges so trials are fast
+    search_space = (
+        SearchSpace()
+        .add_temperature_range(low=900, high=1100, step=100)
+        .add_hold_time_range(low=30, high=60)
+        .add_ramp_step_time_range(low=1, high=5)
+    )
+
+    maker = BOFlowMaker(
+        n_initial=2,
+        n_iterations=2,
+        simulation_size=5,      # tiny grid
+        num_realizations=1,     # single run per trial
+        live_compress=True,
+        compress_freq=50,
+    )
+
+    flow = maker.make(
+        chemical_system="Li-Si-O-C",
+        target_phase="Li4SiO4",
+        search_space=search_space,
+        output_dir=str(output_dir),
+        fixed_precursors={"Li2CO3": 2.0, "SiO2": 1.0},
+        thermo_types=["R2SCAN"],
+    )
+
+    print(f"Flow: '{flow.name}'")
+    print(f"Jobs in flow:")
+    for j in flow.jobs:
+        print(f"  - {j.name}  ({j.uuid})")
+
+    if args.dry_run:
+        print("\n[Dry run] Skipping execution.")
+        return
+
+    from jobflow import run_locally
+    print("\nRunning flow locally...")
+    responses = run_locally(flow, create_folders=True)
+
+    print("\nDone. Check outputs:")
+    print(f"  {output_dir}/history.csv")
+    print(f"  {output_dir}/best_result.json")
+    print(f"  {output_dir}/simulations/")
+
+
+if __name__ == "__main__":
+    main()
