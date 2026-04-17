@@ -1,49 +1,17 @@
-"""Maker-based Bayesian Optimization flow for ReactCA synthesis.
-
-Provides BOFlowMaker, a jobflow Maker that builds the full BO loop Flow.
-Makers store configuration as dataclass fields so the same instance can be
-reused across different chemical systems, serialized with monty, and composed
-into larger workflow Makers.
-
-Usage:
-    from rxn_ca.optimization import SearchSpace
-    from rxn_ca.workflow.bayesian_flow_makers import BOFlowMaker
-
-    maker = BOFlowMaker(
-        n_initial=5,
-        n_iterations=15,
-        simulation_size=10,
-        num_realizations=3,
-    )
-
-    # Reuse the same maker for different chemical systems
-    flow_li = maker.make(
-        chemical_system="Li-Si-O-C",
-        target_phase="Li4SiO4",
-        search_space=search_space_li,
-        output_dir="/pscratch/sd/y/yoo/ReactCA/li4sio4_bo",
-        thermo_types=["R2SCAN"],
-    )
-    flow_ba = maker.make(
-        chemical_system="Ba-Ti-O",
-        target_phase="BaTiO3",
-        search_space=search_space_ba,
-        output_dir="/pscratch/sd/y/yoo/ReactCA/batio3_bo",
-        thermo_types=["R2SCAN"],
-    )
-"""
+"""Bayesian Optimization flow Maker for ReactCA synthesis."""
 
 from __future__ import annotations
 
 import numpy as np
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from jobflow import Flow, Maker
 
 from rxn_ca.optimization import SearchSpace
-from .jobs import setup_reaction_library, init_bo_campaign, bo_trial_step
+from ..jobs.core import setup_reaction_library
+from ..jobs.bayesian import init_bo_campaign, bo_trial_step
 
 
 @dataclass
@@ -79,6 +47,11 @@ class BOFlowMaker(Maker):
             which phases are included.
         exclude_theoretical: If True, exclude phases without experimental
             observations in the Materials Project database.
+
+    Example — reuse the same maker for different systems:
+        maker = BOFlowMaker(n_initial=5, n_iterations=15, simulation_size=10)
+        flow_li = maker.make("Li-Si-O-C", "Li4SiO4", search_space_li, output_dir_li)
+        flow_ba = maker.make("Ba-Ti-O",   "BaTiO3",  search_space_ba, output_dir_ba)
 
     Example — compose into a larger Maker:
         @dataclass

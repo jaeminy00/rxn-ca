@@ -1,11 +1,12 @@
-"""Pre-built flows for common rxn-ca simulation workflows."""
+"""Core flows for rxn-ca simulations."""
+
+from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Union
 
 from jobflow import Flow
 
-from .jobs import setup_reaction_library, run_simulation
-from .schemas import SimulationOutput
+from ..jobs.core import setup_reaction_library, run_simulation
 
 
 def create_simulation_flow(
@@ -40,39 +41,15 @@ def create_simulation_flow(
 
     Returns:
         Flow with setup and simulation jobs, outputting SimulationOutput
-
-    Example:
-        >>> from rxn_ca.core.recipe import ReactionRecipe
-        >>> from rxn_ca.core.heating import HeatingSchedule, HeatingStep
-        >>> from rxn_ca.workflow import create_simulation_flow
-        >>>
-        >>> # Create a recipe
-        >>> heating_steps = HeatingStep.sweep(t0=298, tf=1273, stage_length=1, temp_step_size=50)
-        >>> heating_sched = HeatingSchedule.build(heating_steps)
-        >>> recipe = ReactionRecipe(
-        ...     heating_schedule=heating_sched,
-        ...     reactant_amounts={"BaCO3": 1.0, "TiO2": 1.0},
-        ...     simulation_size=15,
-        ... )
-        >>>
-        >>> # Create and run the flow
-        >>> flow = create_simulation_flow(
-        ...     recipe=recipe,
-        ...     chemical_system="Ba-C-O-Ti",
-        ...     ensure_phases=["BaTiO3", "BaCO3", "TiO2"],
-        ... )
     """
-    # Ensure we have a ReactionRecipe object
     from rxn_ca.core.recipe import ReactionRecipe
 
     if not isinstance(recipe, ReactionRecipe):
         recipe = ReactionRecipe.from_dict(recipe)
 
-    # Get temperatures from recipe if not provided
     if temperatures is None:
         temperatures = recipe.heating_schedule.all_temps
 
-    # Create setup job
     setup_job = setup_reaction_library(
         chemical_system=chemical_system,
         temperatures=temperatures,
@@ -83,7 +60,6 @@ def create_simulation_flow(
     )
     setup_job.name = f"setup_{chemical_system}"
 
-    # Create simulation job
     sim_job = run_simulation(
         recipe=recipe,
         reaction_library_data=setup_job.output,
@@ -130,7 +106,6 @@ def create_multi_simulation_flow(
     """
     from rxn_ca.core.recipe import ReactionRecipe
 
-    # Ensure all recipes are ReactionRecipe objects and collect temperatures
     recipe_objects = []
     all_temps = set()
 
@@ -140,11 +115,9 @@ def create_multi_simulation_flow(
         recipe_objects.append(r)
         all_temps.update(r.heating_schedule.all_temps)
 
-    # Use provided temperatures or collected ones
     if temperatures is None:
         temperatures = sorted(all_temps)
 
-    # Create setup job (shared across all simulations)
     setup_job = setup_reaction_library(
         chemical_system=chemical_system,
         temperatures=temperatures,
@@ -158,7 +131,6 @@ def create_multi_simulation_flow(
     jobs = [setup_job]
     outputs = []
 
-    # Create simulation jobs
     for i, recipe in enumerate(recipe_objects):
         metadata = metadata_list[i] if metadata_list else None
 
