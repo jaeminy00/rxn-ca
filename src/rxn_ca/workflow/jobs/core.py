@@ -11,7 +11,7 @@ import json
 from jobflow import job
 from monty.json import MontyEncoder, MontyDecoder
 
-from .schemas import ReactionLibraryData, SimulationOutput
+from ..schemas import ReactionLibraryData, SimulationOutput
 
 
 def _build_reaction_library(
