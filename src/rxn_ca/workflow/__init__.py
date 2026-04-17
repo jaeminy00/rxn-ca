@@ -10,6 +10,7 @@ Requires the [workflow] optional dependency:
 from .schemas import SimulationOutput, ReactionLibraryData
 from .jobs import setup_reaction_library, run_simulation, init_bo_campaign, bo_trial_step
 from .flows import create_simulation_flow
+from .bayesian_flow_makers import BOFlowMaker
 
 __all__ = [
     "SimulationOutput",
@@ -19,4 +20,5 @@ __all__ = [
     "create_simulation_flow",
     "init_bo_campaign",
     "bo_trial_step",
+    "BOFlowMaker",
 ]
