@@ -41,6 +41,27 @@ def create_simulation_flow(
 
     Returns:
         Flow with setup and simulation jobs, outputting SimulationOutput
+    
+    Example:
+        >>> from rxn_ca.core.recipe import ReactionRecipe
+        >>> from rxn_ca.core.heating import HeatingSchedule, HeatingStep
+        >>> from rxn_ca.workflow import create_simulation_flow
+        >>>
+        >>> # Create a recipe
+        >>> heating_steps = HeatingStep.sweep(t0=298, tf=1273, stage_length=1, temp_step_size=50)
+        >>> heating_sched = HeatingSchedule.build(heating_steps)
+        >>> recipe = ReactionRecipe(
+        ...     heating_schedule=heating_sched,
+        ...     reactant_amounts={"BaCO3": 1.0, "TiO2": 1.0},
+        ...     simulation_size=15,
+        ... )
+        >>>
+        >>> # Create and run the flow
+        >>> flow = create_simulation_flow(
+        ...     recipe=recipe,
+        ...     chemical_system="Ba-C-O-Ti",
+        ...     ensure_phases=["BaTiO3", "BaCO3", "TiO2"],
+        ... )
     """
     from rxn_ca.core.recipe import ReactionRecipe
 
