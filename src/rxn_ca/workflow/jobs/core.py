@@ -4,16 +4,14 @@ These jobs can be used standalone or composed into flows for running
 rxn-ca simulations in workflow frameworks.
 """
 
-from __future__ import annotations
-
-import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import json
 
 from jobflow import job
-from monty.json import MontyEncoder
+from monty.json import MontyEncoder, MontyDecoder
 
-from ..schemas import ReactionLibraryData, SimulationOutput
+from .schemas import ReactionLibraryData, SimulationOutput
 
 
 def _build_reaction_library(
@@ -22,7 +20,6 @@ def _build_reaction_library(
     ensure_phases: List[str] = None,
     metastability_cutoff: float = 0.1,
     exclude_theoretical: bool = True,
-    **entry_kwargs
 ) -> tuple:
     """Build phase set and reaction library for a chemical system.
 
@@ -43,25 +40,29 @@ def _build_reaction_library(
     from rxn_network.enumerators.minimize import MinimizeGibbsEnumerator
     from rxn_network.enumerators.utils import run_enumerators
 
+    # Get entries from Materials Project
     entries = get_entries(
         chem_sys=chemical_system,
         metastability_cutoff=metastability_cutoff,
         ensure_phases=ensure_phases or [],
         exclude_theoretical_phases=exclude_theoretical,
-        **entry_kwargs
     )
     print(f"Got {len(entries)} entries for {chemical_system}")
     if ensure_phases:
         print(f"  (ensured inclusion of: {ensure_phases})")
 
+    # Create phase set
     phase_set = SolidPhaseSet.from_entry_set(entries)
 
+    # Enumerate reactions
     enumerators = [MinimizeGibbsEnumerator(), BasicEnumerator()]
     rxn_set = run_enumerators(enumerators, entries)
     print(f"Enumerated {len(rxn_set)} reactions")
 
+    # Compute reactions at all temperatures
     temp_rxn_mapping = rxn_set.compute_at_temperatures(temperatures)
 
+    # Score reactions
     reaction_lib = get_scored_rxns(
         rxn_set,
         temps=temperatures,
@@ -81,7 +82,6 @@ def setup_reaction_library(
     metastability_cutoff: float = 0.1,
     exclude_theoretical: bool = True,
     save_to_file: bool = True,
-    **entry_kwargs
 ) -> ReactionLibraryData:
     """Set up phase set and reaction library for a chemical system.
 
@@ -109,9 +109,9 @@ def setup_reaction_library(
         ensure_phases,
         metastability_cutoff,
         exclude_theoretical,
-        **entry_kwargs
     )
 
+    # Optionally save reaction library to file
     reaction_library_path = None
     if save_to_file:
         filename = f"reaction_library_{chemical_system.replace('-', '_')}.json"
@@ -172,6 +172,7 @@ def run_simulation(
 
     recipe_dict = recipe.as_dict()
 
+    # Set up phase set and reaction library
     if reaction_library_data is not None:
         phase_set = SolidPhaseSet.from_dict(reaction_library_data.phase_set_dict)
         reaction_lib = ReactionLibrary.from_dict(reaction_library_data.reaction_library_dict)
@@ -187,6 +188,7 @@ def run_simulation(
         chem_sys = chemical_system
         reaction_library_path = None
 
+    # Run simulation
     if recipe.num_realizations > 1:
         result_doc = run_sim_parallel(
             recipe=recipe,
@@ -204,6 +206,7 @@ def run_simulation(
             compress_freq=compress_freq,
         )
 
+    # Optionally save result doc to file
     result_doc_path = None
     if save_to_file:
         filename = f"result_doc_{chem_sys.replace('-', '_')}.json"
@@ -212,12 +215,15 @@ def run_simulation(
             json.dump(result_doc.as_dict(), f, cls=MontyEncoder)
         print(f"Saved result doc to {result_doc_path}")
 
+    # Analyze results
     analyzer = BulkReactionAnalyzer.from_result_doc(result_doc)
 
+    # Get final molar amounts
     final_molar_amounts = analyzer.get_all_absolute_molar_amounts(
         analyzer.last_loaded_step_idx
     )
 
+    # Build trajectory: molar amounts at each step
     molar_trajectory: Dict[str, List[float]] = {}
     temp_trajectory: List[float] = []
     step_indices: List[int] = list(analyzer.loaded_step_idxs)
