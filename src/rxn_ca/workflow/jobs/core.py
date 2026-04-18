@@ -47,7 +47,7 @@ def _build_reaction_library(
         metastability_cutoff=metastability_cutoff,
         ensure_phases=ensure_phases or [],
         exclude_theoretical_phases=exclude_theoretical,
-        **entry_kwargs,
+        thermo_types=entry_kwargs.get("thermo_types", ["GGA_GGA+U"])
     )
     print(f"Got {len(entries)} entries for {chemical_system}")
     if ensure_phases:
