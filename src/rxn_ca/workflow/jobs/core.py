@@ -61,13 +61,17 @@ def _build_reaction_library(
     rxn_set = run_enumerators(enumerators, entries)
     print(f"Enumerated {len(rxn_set)} reactions")
 
+    # rxn_network's G_ELEMS uses integer string keys ('300', '400', ...),
+    # so temperatures must be ints — float 300.0 becomes '300.0' and KeyErrors.
+    int_temps = [int(t) for t in temperatures]
+
     # Compute reactions at all temperatures
-    temp_rxn_mapping = rxn_set.compute_at_temperatures(temperatures)
+    temp_rxn_mapping = rxn_set.compute_at_temperatures(int_temps)
 
     # Score reactions
     reaction_lib = get_scored_rxns(
         rxn_set,
-        temps=temperatures,
+        temps=int_temps,
         phase_set=phase_set,
         rxns_at_temps=temp_rxn_mapping,
         parallel=True,

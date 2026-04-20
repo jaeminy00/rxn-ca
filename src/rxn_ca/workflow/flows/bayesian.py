@@ -123,7 +123,7 @@ class BOFlowMaker(Maker):
                 "Add one with search_space.add_temperature_range(...)."
             )
         temperatures = sorted(
-            set(float(t) for t in np.arange(300, hold_temp_param.high + 1, 100))
+            set(int(t) for t in np.arange(300, hold_temp_param.high + 1, 100))
         )
 
         # --- Derive precursor slot names from search space ---
