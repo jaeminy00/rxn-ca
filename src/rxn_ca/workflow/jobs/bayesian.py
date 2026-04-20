@@ -12,11 +12,12 @@ import pandas as pd
 from jobflow import Response, job
 
 from ..schemas import ReactionLibraryData
-
+import os
 
 # ---------------------------------------------------------------------------
 # Helpers (not @job — called inside bo_trial_step)
 # ---------------------------------------------------------------------------
+
 
 def build_recipe_from_params(
     params: Dict[str, Any],
@@ -142,8 +143,9 @@ def init_bo_campaign(
 
     print(f"Initialized BayBE Campaign: {search_space}")
     print(f"  n_initial={n_initial}, n_iterations={n_iterations}, target='{target_name}'")
-
-    return {"campaign_json": optimizer._campaign.to_json()}
+    with open("campaign.json", "w") as f:
+        json.dump(optimizer._campaign.to_json(), f)
+    return {"campaign.json": os.getcwd() + "/campaign.json"}
 
 
 @job
@@ -211,7 +213,9 @@ def bo_trial_step(
     print(f"\n=== BO Trial {iteration + 1}/{total_iterations} ===")
 
     # --- Step 1: Restore BayBE Campaign (GP posterior preserved) ---
-    campaign = Campaign.from_json(campaign_json)
+    with open(campaign_json, "r") as f:
+        campaign_jsonfile = json.load(f)
+        campaign = Campaign.from_json(campaign_jsonfile)
 
     # --- Step 2: Get next recommendation ---
     recommendation = campaign.recommend(batch_size=1)
@@ -325,7 +329,7 @@ def bo_trial_step(
             "total_evaluations": total_iterations,
         }
         (output_path / "best_result.json").write_text(json.dumps(summary, indent=2))
-        print(f"\nOptimization complete.")
+        print("\nOptimization complete.")
         print(f"Best score: {best['score']:.4f} at iteration {best['iteration']}")
         print(f"Best params: {best['params']}")
         return summary
