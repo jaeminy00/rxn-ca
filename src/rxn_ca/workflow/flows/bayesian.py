@@ -181,7 +181,7 @@ class BOFlowMaker(Maker):
         first_trial = bo_trial_step(
             iteration=0,
             total_iterations=total_iterations,
-            campaign_json=init_job.output["campaign_json"],
+            campaign_json=init_job.output["campaign.json"],
             reaction_library_data=setup_job.output,
             precursor_slot_names=precursor_slot_names,
             fixed_precursors=fixed_precursors,
