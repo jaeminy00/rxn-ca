@@ -88,6 +88,9 @@ def setup_reaction_library(
     metastability_cutoff: float = 0.1,
     exclude_theoretical: bool = True,
     save_to_file: bool = True,
+    library_dir: Optional[str] = None,
+    include_library_dict: bool = True,
+    entry_kwargs: Optional[Dict[str, Any]] = None,
     **library_kwargs,
 ) -> ReactionLibraryData:
     """Set up phase set and reaction library for a chemical system.
@@ -106,31 +109,42 @@ def setup_reaction_library(
         metastability_cutoff: Energy above hull cutoff for phases
         exclude_theoretical: Whether to exclude theoretical phases
         save_to_file: If True, save reaction library to a JSON file
+        library_dir: Optional output directory for saved library JSON.
+            Defaults to current working directory when not provided.
+        include_library_dict: Whether to include the full serialized
+            reaction_library_dict in the returned payload.
+        entry_kwargs: Optional kwargs forwarded to entry/reaction enumeration.
 
     Returns:
         ReactionLibraryData with phase set, reaction library, and metadata
     """
+    build_kwargs: Dict[str, Any] = {}
+    build_kwargs.update(entry_kwargs or {})
+    build_kwargs.update(library_kwargs)
+
     phase_set, reaction_lib = _build_reaction_library(
         chemical_system,
         temperatures,
         ensure_phases,
         metastability_cutoff,
         exclude_theoretical,
-        **library_kwargs,
+        **build_kwargs,
     )
 
     # Optionally save reaction library to file
     reaction_library_path = None
     if save_to_file:
+        output_dir = Path(library_dir).expanduser() if library_dir else Path.cwd()
+        output_dir.mkdir(parents=True, exist_ok=True)
         filename = f"reaction_library_{chemical_system.replace('-', '_')}.json"
-        reaction_library_path = str(Path.cwd() / filename)
+        reaction_library_path = str((output_dir / filename).resolve())
         with open(reaction_library_path, "w") as f:
             json.dump(reaction_lib.as_dict(), f, cls=MontyEncoder)
         print(f"Saved reaction library to {reaction_library_path}")
 
     return ReactionLibraryData(
         phase_set_dict=phase_set.as_dict(),
-        reaction_library_dict=reaction_lib.as_dict(),
+        reaction_library_dict=reaction_lib.as_dict() if include_library_dict else {},
         chemical_system=chemical_system,
         temperatures=temperatures,
         phases_available=list(phase_set.phases),
@@ -182,8 +196,16 @@ def run_simulation(
 
     # Set up phase set and reaction library
     if reaction_library_data is not None:
-        phase_set = SolidPhaseSet.from_dict(reaction_library_data.phase_set_dict)
-        reaction_lib = ReactionLibrary.from_dict(reaction_library_data.reaction_library_dict)
+        if reaction_library_data.reaction_library_path:
+            reaction_lib = ReactionLibrary.from_file(reaction_library_data.reaction_library_path)
+            phase_set = reaction_lib.phases
+        elif reaction_library_data.reaction_library_dict:
+            phase_set = SolidPhaseSet.from_dict(reaction_library_data.phase_set_dict)
+            reaction_lib = ReactionLibrary.from_dict(reaction_library_data.reaction_library_dict)
+        else:
+            raise ValueError(
+                "reaction_library_data must include reaction_library_path or reaction_library_dict"
+            )
         chem_sys = reaction_library_data.chemical_system
         reaction_library_path = reaction_library_data.reaction_library_path
     else:

@@ -156,6 +156,11 @@ class BOFlowMaker(Maker):
         }
 
         # --- Job 1: Build reaction library (runs once, shared across all trials) ---
+        setup_kwargs = dict(library_kwargs)
+        library_dir = setup_kwargs.pop("library_dir", None)
+        include_library_dict = setup_kwargs.pop("include_library_dict", False)
+        entry_kwargs = setup_kwargs.pop("entry_kwargs", {})
+
         setup_job = setup_reaction_library(
             chemical_system=chemical_system,
             temperatures=temperatures,
@@ -163,7 +168,10 @@ class BOFlowMaker(Maker):
             metastability_cutoff=self.metastability_cutoff,
             exclude_theoretical=self.exclude_theoretical,
             save_to_file=True,
-            entry_kwargs=library_kwargs.get("entry_kwargs", {}),
+            library_dir=library_dir,
+            include_library_dict=include_library_dict,
+            entry_kwargs=entry_kwargs,
+            **setup_kwargs,
         )
         setup_job.name = f"setup_{chemical_system}"
 

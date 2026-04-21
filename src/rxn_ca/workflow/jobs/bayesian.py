@@ -241,8 +241,16 @@ def bo_trial_step(
     print(f"Recipe: {opt_recipe}")
 
     # --- Step 4: Load reaction library ---
-    phase_set = SolidPhaseSet.from_dict(reaction_library_data.phase_set_dict)
-    rxn_lib = ReactionLibrary.from_dict(reaction_library_data.reaction_library_dict)
+    if reaction_library_data.reaction_library_path:
+        rxn_lib = ReactionLibrary.from_file(reaction_library_data.reaction_library_path)
+        phase_set = rxn_lib.phases
+    elif reaction_library_data.reaction_library_dict:
+        phase_set = SolidPhaseSet.from_dict(reaction_library_data.phase_set_dict)
+        rxn_lib = ReactionLibrary.from_dict(reaction_library_data.reaction_library_dict)
+    else:
+        raise ValueError(
+            "reaction_library_data must include reaction_library_path or reaction_library_dict"
+        )
 
     # --- Step 5: Run simulation ---
     print("Running simulation...")
