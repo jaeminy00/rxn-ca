@@ -304,13 +304,19 @@ def bo_trial_step(
             print(f"Warning: could not save full result doc: {e}")
 
     # --- Step 9: Chain next trial or finalize ---
-    new_campaign_json = campaign.to_json()
+    # Write the updated campaign to a shared-filesystem file so the next
+    # trial job (running on a different worker) can read it by path.
+    # Passing campaign.to_json() directly would give a raw JSON string, but
+    # bo_trial_step expects a file path (open(campaign_json, "r")).
+    campaign_path = str(output_path / f"campaign_iter_{iteration:03d}.json")
+    with open(campaign_path, "w") as f:
+        json.dump(campaign.to_json(), f)
 
     if iteration + 1 < total_iterations:
         next_job = bo_trial_step(
             iteration=iteration + 1,
             total_iterations=total_iterations,
-            campaign_json=new_campaign_json,
+            campaign_json=campaign_path,
             reaction_library_data=reaction_library_data,
             precursor_slot_names=precursor_slot_names,
             fixed_precursors=fixed_precursors,
