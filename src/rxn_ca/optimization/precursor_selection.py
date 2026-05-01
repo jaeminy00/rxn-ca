@@ -65,11 +65,11 @@ COMMON_ANION_TYPES: List[AnionType] = [
     AnionType("phosphate", "PO4", -3, frozenset({"P", "O"})),
 ]
 
-# Default anion types for typical solid-state synthesis
-DEFAULT_PRECURSOR_ANIONS: List[str] = ["oxide", "carbonate", "hydroxide", "nitrate"]
+# Default anion types for typical solid-state synthesis (by formula)
+DEFAULT_PRECURSOR_ANIONS: List[str] = ["O", "CO3", "OH", "NO3"]
 
-# Anion types useful for metathesis reactions
-METATHESIS_ANIONS: List[str] = ["chloride", "bromide", "nitrate", "sulfate", "acetate"]
+# Anion types useful for metathesis reactions (by formula)
+METATHESIS_ANIONS: List[str] = ["Cl", "Br", "NO3", "SO4", "C2H3O2"]
 
 # Counter-cations for metathesis reactions (provide leaving groups)
 # Maps cation symbol to its oxidation state
@@ -80,6 +80,9 @@ METATHESIS_COUNTER_CATIONS: Dict[str, int] = {
     "NH4": 1,  # Ammonium - decomposes to NH3 + H+
     "Cs": 1,
 }
+
+# Build formula -> AnionType lookup (populated after COMMON_ANION_TYPES is defined)
+_ANION_BY_FORMULA: Dict[str, "AnionType"] = {}
 
 
 # =============================================================================
@@ -164,22 +167,49 @@ def generate_precursor_formula(
     return cation_str + anion_str
 
 
-def get_anion_by_name(name: str) -> AnionType:
-    """Get an AnionType by its name.
+def _build_anion_lookup() -> None:
+    """Build the formula -> AnionType lookup dict."""
+    for anion in COMMON_ANION_TYPES:
+        _ANION_BY_FORMULA[anion.formula] = anion
+
+
+def get_anion(identifier: str) -> AnionType:
+    """Get an AnionType by its formula or name.
 
     Args:
-        name: Anion name (e.g., "oxide", "carbonate")
+        identifier: Anion formula (e.g., "CO3", "Cl") or name (e.g., "carbonate")
 
     Returns:
         Matching AnionType
 
     Raises:
-        ValueError: If anion name not found
+        ValueError: If anion not found
+
+    Examples:
+        >>> get_anion("CO3")
+        AnionType(name='carbonate', formula='CO3', ...)
+        >>> get_anion("Cl")
+        AnionType(name='chloride', formula='Cl', ...)
+        >>> get_anion("carbonate")  # name also works for backwards compat
+        AnionType(name='carbonate', formula='CO3', ...)
     """
+    # Ensure lookup is populated
+    if not _ANION_BY_FORMULA:
+        _build_anion_lookup()
+
+    # Try formula first
+    if identifier in _ANION_BY_FORMULA:
+        return _ANION_BY_FORMULA[identifier]
+
+    # Fall back to name lookup for backwards compatibility
     for anion in COMMON_ANION_TYPES:
-        if anion.name == name:
+        if anion.name == identifier:
             return anion
-    raise ValueError(f"Unknown anion type: {name}")
+
+    raise ValueError(
+        f"Unknown anion: '{identifier}'. "
+        f"Valid formulas: {list(_ANION_BY_FORMULA.keys())}"
+    )
 
 
 def generate_practical_precursors(
@@ -214,7 +244,7 @@ def generate_practical_precursors(
     if not oxidation_states:
         return []
 
-    anions = [get_anion_by_name(name) for name in anion_types]
+    anions = [get_anion(a) for a in anion_types]
 
     precursors = []
     seen = set()
@@ -253,7 +283,7 @@ def generate_metathesis_sources(
     if counter_cations is None:
         counter_cations = ["Na", "K"]
 
-    anion = get_anion_by_name(target_anion)
+    anion = get_anion(target_anion)
 
     sources = []
     for cation in counter_cations:
@@ -266,21 +296,22 @@ def generate_metathesis_sources(
     return sources
 
 
-def get_elements_from_anion_types(anion_types: Optional[List[str]] = None) -> Set[str]:
-    """Get all elements introduced by a set of anion types.
+def get_elements_from_anions(anions: Optional[List[str]] = None) -> Set[str]:
+    """Get all elements introduced by a set of anions.
 
     Args:
-        anion_types: List of anion type names. Defaults to DEFAULT_PRECURSOR_ANIONS.
+        anions: List of anion formulas (e.g., ["CO3", "Cl"]).
+            Defaults to DEFAULT_PRECURSOR_ANIONS.
 
     Returns:
         Set of element symbols
     """
-    if anion_types is None:
-        anion_types = DEFAULT_PRECURSOR_ANIONS
+    if anions is None:
+        anions = DEFAULT_PRECURSOR_ANIONS
 
     elements: Set[str] = set()
-    for name in anion_types:
-        anion = get_anion_by_name(name)
+    for identifier in anions:
+        anion = get_anion(identifier)
         elements.update(anion.elements)
 
     return elements
@@ -288,20 +319,25 @@ def get_elements_from_anion_types(anion_types: Optional[List[str]] = None) -> Se
 
 def get_expanded_elements(
     target_phase: str,
-    anion_types: Optional[List[str]] = None,
-    include_metathesis: bool = True,
+    anions: Optional[List[str]] = None,
+    metathesis_anions: Optional[List[str]] = None,
+    counter_cations: Optional[List[str]] = None,
 ) -> Set[str]:
     """Get the full set of elements needed for precursor selection.
 
     This expands beyond the target phase elements to include elements from
-    common precursor anions (e.g., C from carbonates, N from nitrates).
+    precursor anions (e.g., C from CO3, N from NO3) and optionally metathesis
+    reagents.
 
     Use this to determine what elements to pass to get_entries().
 
     Args:
         target_phase: Target product formula (e.g., "BaTiO3")
-        anion_types: Anion types to consider. Defaults to DEFAULT_PRECURSOR_ANIONS.
-        include_metathesis: If True, also include elements from metathesis anions.
+        anions: Base anion formulas for precursors. Defaults to ["O", "CO3", "OH", "NO3"].
+        metathesis_anions: Additional anions for metathesis (e.g., ["Cl"]).
+            Defaults to None (no metathesis anions).
+        counter_cations: Counter-cations for metathesis (e.g., ["Na", "K"]).
+            Defaults to None (no counter-cations).
 
     Returns:
         Set of element symbols needed for get_entries()
@@ -309,30 +345,41 @@ def get_expanded_elements(
     Examples:
         >>> get_expanded_elements("BaTiO3")
         {'Ba', 'Ti', 'O', 'C', 'N', 'H'}
-        >>> get_expanded_elements("BaTiO3", anion_types=["oxide"])
+        >>> get_expanded_elements("BaTiO3", anions=["O"])
         {'Ba', 'Ti', 'O'}
+        >>> get_expanded_elements("BaTiO3", metathesis_anions=["Cl"], counter_cations=["Na"])
+        {'Ba', 'Ti', 'O', 'C', 'N', 'H', 'Cl', 'Na'}
     """
     # Start with target phase elements
     target_comp = Composition(target_phase)
     elements = {str(el) for el in target_comp.elements}
 
-    # Add elements from precursor anions
-    if anion_types is None:
-        anion_types = list(DEFAULT_PRECURSOR_ANIONS)
+    # Add elements from base precursor anions
+    if anions is None:
+        anions = list(DEFAULT_PRECURSOR_ANIONS)
 
-    if include_metathesis:
-        # Add metathesis anion elements too
-        anion_types = list(set(anion_types + METATHESIS_ANIONS))
+    all_anions = list(anions)
 
-    elements.update(get_elements_from_anion_types(anion_types))
+    # Add metathesis anions if specified
+    if metathesis_anions:
+        all_anions = list(set(all_anions + metathesis_anions))
 
-    # Add counter-cation elements if including metathesis
-    if include_metathesis:
-        elements.update(METATHESIS_COUNTER_CATIONS.keys())
-        # Remove NH4 as it's not a real element, add N and H instead
-        elements.discard("NH4")
-        elements.add("N")
-        elements.add("H")
+    elements.update(get_elements_from_anions(all_anions))
+
+    # Add counter-cation elements if specified
+    if counter_cations:
+        for cation in counter_cations:
+            if cation == "NH4":
+                # NH4 is not a real element, add N and H instead
+                elements.add("N")
+                elements.add("H")
+            elif cation not in METATHESIS_COUNTER_CATIONS:
+                raise ValueError(
+                    f"Unknown counter-cation: '{cation}'. "
+                    f"Valid options: {list(METATHESIS_COUNTER_CATIONS.keys())}"
+                )
+            else:
+                elements.add(cation)
 
     return elements
 
