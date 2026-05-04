@@ -252,50 +252,63 @@ def bo_trial_step(
             "reaction_library_data must include reaction_library_path or reaction_library_dict"
         )
 
-    # --- Step 5: Run simulation ---
-    print("Running simulation...")
-    if num_realizations > 1:
-        result_doc = run_sim_parallel(
-            recipe,
-            reaction_lib=rxn_lib,
-            phase_set=phase_set,
-            live_compress=live_compress,
-            compress_freq=compress_freq,
-        )
+    # --- Steps 5-6: Run simulation and score ---
+    # If trial_path already exists this Firework is being re-run after a
+    # walltime kill that occurred after the simulation completed (e.g. during
+    # campaign save or Response chaining).  Skip the expensive simulation and
+    # reuse the cached score so the GP posterior stays consistent.
+    trial_path = sim_dir / f"trial_{iteration:03d}.json"
+    if trial_path.exists():
+        cached = json.loads(trial_path.read_text())
+        score = cached["score"]
+        result_doc = None
+        print(f"Re-run detected: reusing cached score {score:.4f} from {trial_path.name}")
     else:
-        result_doc = run_single_sim(
-            recipe,
-            reaction_lib=rxn_lib,
-            phase_set=phase_set,
-            live_compress=live_compress,
-            compress_freq=compress_freq,
-        )
-
-    # --- Step 6: Score ---
-    score = _score_result(result_doc, target_phase, scorer_type)
-    print(f"Score ({target_phase}, {scorer_type}): {score:.4f}")
+        print("Running simulation...")
+        if num_realizations > 1:
+            result_doc = run_sim_parallel(
+                recipe,
+                reaction_lib=rxn_lib,
+                phase_set=phase_set,
+                live_compress=live_compress,
+                compress_freq=compress_freq,
+            )
+        else:
+            result_doc = run_single_sim(
+                recipe,
+                reaction_lib=rxn_lib,
+                phase_set=phase_set,
+                live_compress=live_compress,
+                compress_freq=compress_freq,
+            )
+        score = _score_result(result_doc, target_phase, scorer_type)
+        print(f"Score ({target_phase}, {scorer_type}): {score:.4f}")
 
     # --- Step 7: Tell Campaign ---
     campaign.add_measurements(pd.DataFrame([{**params, target_name: score}]))
 
     # --- Step 8: Save per-trial outputs ---
-    trial_result = {
-        "iteration": iteration,
-        "params": params,
-        "score": score,
-        "timestamp": datetime.utcnow().isoformat(),
-    }
-    trial_path = sim_dir / f"trial_{iteration:03d}.json"
-    trial_path.write_text(json.dumps(trial_result, indent=2))
+    if not trial_path.exists():
+        trial_path.write_text(json.dumps({
+            "iteration": iteration,
+            "params": params,
+            "score": score,
+            "timestamp": datetime.utcnow().isoformat(),
+        }, indent=2))
 
     history_path = output_path / "history.csv"
-    write_header = not history_path.exists()
-    fieldnames = ["iteration", "score", *sorted(params.keys())]
-    with history_path.open("a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        if write_header:
-            writer.writeheader()
-        writer.writerow({"iteration": iteration, "score": score, **params})
+    already_logged = history_path.exists() and any(
+        int(row["iteration"]) == iteration
+        for row in csv.DictReader(history_path.open())
+    )
+    if not already_logged:
+        write_header = not history_path.exists()
+        fieldnames = ["iteration", "score", *sorted(params.keys())]
+        with history_path.open("a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            if write_header:
+                writer.writeheader()
+            writer.writerow({"iteration": iteration, "score": score, **params})
 
     if result_doc is not None and hasattr(result_doc, "to_file"):
         try:
