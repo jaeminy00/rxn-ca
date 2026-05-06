@@ -50,8 +50,15 @@ def build_recipe_from_params(
     }
 
     if fixed_precursors is not None:
+        # Allow BayBE to optimize individual precursor amounts via
+        # '{formula}_ratio' parameters in the search space. Formulas without
+        # a ratio parameter keep their base amount from fixed_precursors.
+        scaled = {
+            formula: float(clean_params.get(f"{formula}_ratio", base_amount))
+            for formula, base_amount in fixed_precursors.items()
+        }
         return OptimizableRecipe(
-            precursors=fixed_precursors,
+            precursors=scaled,
             hold_temp=int(clean_params["hold_temp"]),
             hold_time=int(clean_params["hold_time"]),
             ramp_step_time=int(clean_params.get("ramp_step_time", 1)),
