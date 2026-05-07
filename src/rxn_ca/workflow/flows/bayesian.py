@@ -83,6 +83,7 @@ class BOFlowMaker(Maker):
         output_dir: str,
         fixed_precursors: Optional[Dict[str, float]] = None,
         ensure_phases: Optional[List[str]] = None,
+        fw_category: Optional[str] = None,
         **library_kwargs,
     ) -> Flow:
         """Build a Bayesian Optimization Flow for the given chemical system.
@@ -100,6 +101,12 @@ class BOFlowMaker(Maker):
                 is). Mutually exclusive with precursor slots in search_space.
             ensure_phases: Phases that must be present in the reaction library.
                 Defaults to target_phase + all precursor candidates.
+            fw_category: FireWorks _category tag. When provided, every trial
+                job (including dynamically-added ones) carries this tag so
+                workers launched with `rlaunch --category <tag>` only run
+                Fireworks belonging to this workflow. Generated automatically
+                by optimize_synthesis_general.py and written to
+                {output_dir}/fw_category.txt.
             **library_kwargs: Forwarded to setup_reaction_library
                 (e.g. thermo_types=["R2SCAN"]).
 
@@ -195,7 +202,10 @@ class BOFlowMaker(Maker):
             fixed_precursors=fixed_precursors,
             objective_config=objective_config,
             output_dir=output_dir,
+            fw_category=fw_category,
         )
+        if fw_category:
+            first_trial.update_config({"manager_config": {"_category": fw_category}})
         first_trial.name = "bo_trial_000"
 
         return Flow(

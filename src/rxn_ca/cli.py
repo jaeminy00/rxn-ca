@@ -293,15 +293,43 @@ def suggest_precursors():
         action='store_true',
         help='Output as JSON instead of human-readable format',
     )
+    parser.add_argument(
+        '--anions',
+        type=str,
+        default=None,
+        help='Comma-separated anion formulas for precursors (default: O,CO3,OH,NO3)',
+    )
+    parser.add_argument(
+        '--metathesis',
+        type=str,
+        default=None,
+        help='Comma-separated metathesis anion formulas (e.g., Cl or Cl,Br)',
+    )
+    parser.add_argument(
+        '--counter-cations',
+        type=str,
+        default=None,
+        help='Comma-separated counter-cations for metathesis (e.g., Na,K)',
+    )
 
     args = parser.parse_args()
 
     target = args.target
     print(f"Finding precursor combinations for: {target}", file=sys.stderr)
 
+    # Parse anion/cation arguments
+    anions = args.anions.split(',') if args.anions else None
+    metathesis_anions = args.metathesis.split(',') if args.metathesis else None
+    counter_cations = args.counter_cations.split(',') if args.counter_cations else None
+
     # Expand elements to include precursor anions (C, N, H, etc.)
     print("Expanding element set for precursor phases...", file=sys.stderr)
-    elements = get_expanded_elements(target)
+    elements = get_expanded_elements(
+        target,
+        anions=anions,
+        metathesis_anions=metathesis_anions,
+        counter_cations=counter_cations,
+    )
     print(f"  Elements: {', '.join(sorted(elements))}", file=sys.stderr)
 
     # Fetch entries from Materials Project

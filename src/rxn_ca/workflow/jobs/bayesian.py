@@ -4,12 +4,23 @@ from __future__ import annotations
 
 import csv
 import json
+import signal
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from jobflow import Response, job
+
+_RECOMMEND_TIMEOUT_SECONDS = 300  # fall back to random after 5 min
+
+
+class _RecommendTimeout(Exception):
+    pass
+
+
+def _alarm_handler(signum, frame):
+    raise _RecommendTimeout()
 
 from ..schemas import ReactionLibraryData
 import os
@@ -165,6 +176,7 @@ def bo_trial_step(
     fixed_precursors: Optional[Dict[str, float]],
     objective_config: dict,
     output_dir: str,
+    fw_category: Optional[str] = None,
 ) -> Response:
     """Run one Bayesian optimization trial and chain the next.
 
@@ -194,6 +206,9 @@ def bo_trial_step(
             live_compress (bool), compress_freq (int).
         output_dir: Shared filesystem path for per-trial JSON, history.csv,
             and best_result.json. Must be accessible from all worker nodes.
+        fw_category: FireWorks _category tag for this workflow. When set,
+            propagated to each dynamically-added next trial so workers
+            filtered with `rlaunch --category <tag>` only run this workflow.
 
     Returns:
         Response(addition=<next bo_trial_step>) if more trials remain,
@@ -225,7 +240,31 @@ def bo_trial_step(
         campaign = Campaign.from_json(campaign_jsonfile)
 
     # --- Step 2: Get next recommendation ---
-    recommendation = campaign.recommend(batch_size=1)
+    # Guard against the acquisition-function optimiser hanging at a continuous
+    # parameter boundary (L-BFGS-B can spin forever when the GP posterior peak
+    # sits exactly on the lower/upper bound).  After _RECOMMEND_TIMEOUT_SECONDS
+    # we fall back to RandomRecommender so the trial can still run.
+    signal.signal(signal.SIGALRM, _alarm_handler)
+    signal.alarm(_RECOMMEND_TIMEOUT_SECONDS)
+    try:
+        recommendation = campaign.recommend(batch_size=1)
+        signal.alarm(0)
+    except _RecommendTimeout:
+        signal.alarm(0)
+        print(
+            f"Warning: campaign.recommend() timed out after "
+            f"{_RECOMMEND_TIMEOUT_SECONDS}s. "
+            "Falling back to random recommendation. "
+            "Consider re-registering the workflow with discrete ratio parameters "
+            "to prevent this (see search_space.add_precursor_ratio)."
+        )
+        from baybe.recommenders.pure.nonpredictive.sampling import RandomRecommender
+        recommendation = RandomRecommender().recommend(
+            batch_size=1,
+            searchspace=campaign.searchspace,
+            objective=campaign.objective,
+            measurements=campaign.measurements,
+        )
     params = {
         col: (
             recommendation.iloc[0][col].item()
@@ -342,7 +381,10 @@ def bo_trial_step(
             fixed_precursors=fixed_precursors,
             objective_config=objective_config,
             output_dir=output_dir,
+            fw_category=fw_category,
         )
+        if fw_category:
+            next_job.update_config({"manager_config": {"_category": fw_category}})
         return Response(addition=next_job)
 
     # Final iteration: collect all trial results and write summary

@@ -124,19 +124,26 @@ class SearchSpace:
         name: str,
         low: float,
         high: float,
+        step: float = 0.05,
     ) -> "SearchSpace":
-        """Add a precursor ratio parameter.
+        """Add a precursor ratio parameter (discrete with given step size).
+
+        Discrete rather than continuous: BayBE enumerates all candidate values
+        and selects via Thompson Sampling, avoiding the L-BFGS-B boundary-hang
+        that occurs when a continuous parameter's optimum sits at its lower bound
+        (e.g. the stoichiometric ratio is also the minimum of the search range).
 
         Args:
             name: Parameter name (should match a precursor slot name + "_ratio")
-            low: Minimum ratio (typically 0-1)
-            high: Maximum ratio (typically 0-1)
+            low: Minimum ratio value
+            high: Maximum ratio value
+            step: Grid spacing between ratio values (default 0.05)
 
         Returns:
             self for method chaining
         """
         ratio_name = f"{name}_ratio" if not name.endswith("_ratio") else name
-        param = ContinuousParameter(name=ratio_name, low=low, high=high)
+        param = DiscreteParameter(name=ratio_name, low=low, high=high, step=step)
         return self._add_parameter(param)
 
     def add_continuous(
