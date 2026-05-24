@@ -1,3 +1,7 @@
+import os
+import multiprocessing as mp
+from typing import List
+
 from rxn_network.reactions.reaction_set import ReactionSet
 
 from ..core import HeatingSchedule
@@ -6,11 +10,14 @@ from ..phases import SolidPhaseSet
 from ..reactions import ReactionLibrary, ScoredReaction, ScoredReactionSet, score_rxns
 from ..reactions.scorers import BasicScore, TammanScore
 
-from typing import List
-
-import multiprocessing as mp
-
 _scoring_globals = {}
+
+
+def _pool_initializer(data: dict):
+    """Populate worker-process globals (called by forkserver/spawn pool workers)."""
+    global _scoring_globals
+    _scoring_globals.update(data)
+
 
 def fn(temp):
     score_class = _scoring_globals.get('score_class')

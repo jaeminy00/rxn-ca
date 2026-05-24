@@ -212,3 +212,84 @@ class BOFlowMaker(Maker):
             [setup_job, init_job, first_trial],
             name=flow_name,
         )
+
+    def make_campaign(
+        self,
+        chemical_system: str,
+        target_phase: str,
+        search_space: SearchSpace,
+        output_dir: str,
+        reaction_library_data,
+        fixed_precursors: Optional[Dict[str, float]] = None,
+        fw_category: Optional[str] = None,
+    ) -> Flow:
+        """Build a BO campaign Flow using a pre-built reaction library.
+
+        Like make(), but accepts an existing reaction_library_data (or a
+        jobflow OutputReference to one) instead of creating a
+        setup_reaction_library job internally. Use this when sharing one
+        reaction library across multiple campaigns for the same chemical system.
+
+        Args:
+            chemical_system: Element system string, e.g. "Na-Mo-Cd-N-O".
+            target_phase: Formula of the target product.
+            search_space: Configured SearchSpace.
+            output_dir: Shared filesystem path for trial outputs
+                (history.csv, best_result.json, simulations/).
+            reaction_library_data: A ReactionLibraryData object or a jobflow
+                OutputReference (e.g. setup_job.output) that resolves to one.
+            fixed_precursors: Formula → molar amount map. When provided,
+                precursor selection is not optimized.
+            fw_category: FireWorks _category tag. When provided, every job in
+                this campaign carries the tag so workers with a matching
+                fworker.yaml only run this campaign's Fireworks.
+
+        Returns:
+            Flow containing init and first trial jobs only (no setup job).
+        """
+        flow_name = f"{self.name}_{target_phase}_{chemical_system}"
+        output_dir = str(Path(output_dir).expanduser().resolve())
+        total_iterations = self.n_initial + self.n_iterations
+
+        precursor_slot_names = [p.name for p in search_space.precursor_parameters]
+
+        if fixed_precursors is not None and precursor_slot_names:
+            raise ValueError(
+                "Provide either fixed_precursors or precursor slots in search_space, not both."
+            )
+
+        objective_config = {
+            "target_phase": target_phase,
+            "scorer_type": self.scorer_type,
+            "simulation_size": self.simulation_size,
+            "num_realizations": self.num_realizations,
+            "live_compress": self.live_compress,
+            "compress_freq": self.compress_freq,
+            "target_name": "yield",
+        }
+
+        init_job = init_bo_campaign(
+            search_space_config=search_space.as_dict(),
+            n_initial=self.n_initial,
+            n_iterations=self.n_iterations,
+        )
+        init_job.name = "init_bo_campaign"
+        if fw_category:
+            init_job.update_config({"manager_config": {"_category": fw_category}})
+
+        first_trial = bo_trial_step(
+            iteration=0,
+            total_iterations=total_iterations,
+            campaign_json=init_job.output["campaign.json"],
+            reaction_library_data=reaction_library_data,
+            precursor_slot_names=precursor_slot_names,
+            fixed_precursors=fixed_precursors,
+            objective_config=objective_config,
+            output_dir=output_dir,
+            fw_category=fw_category,
+        )
+        if fw_category:
+            first_trial.update_config({"manager_config": {"_category": fw_category}})
+        first_trial.name = "bo_trial_000"
+
+        return Flow([init_job, first_trial], name=flow_name)
