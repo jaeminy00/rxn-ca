@@ -84,6 +84,7 @@ class BOFlowMaker(Maker):
         fixed_precursors: Optional[Dict[str, float]] = None,
         ensure_phases: Optional[List[str]] = None,
         fw_category: Optional[str] = None,
+        metadata: Optional[Dict] = None,
         **library_kwargs,
     ) -> Flow:
         """Build a Bayesian Optimization Flow for the given chemical system.
@@ -190,6 +191,13 @@ class BOFlowMaker(Maker):
         )
         init_job.name = "init_bo_campaign"
 
+        # --- Merge user metadata with auto-derived fields ---
+        _metadata = {
+            "target_phase": target_phase,
+            "chemical_system": chemical_system,
+            **(metadata or {}),
+        }
+
         # --- Job 3: First BO trial ---
         # campaign_json and reaction_library_data are job output references —
         # jobflow resolves them at runtime after the upstream jobs complete.
@@ -203,15 +211,18 @@ class BOFlowMaker(Maker):
             objective_config=objective_config,
             output_dir=output_dir,
             fw_category=fw_category,
+            metadata=_metadata,
         )
         if fw_category:
             first_trial.update_config({"manager_config": {"_category": fw_category}})
-        first_trial.name = "bo_trial_000"
+        first_trial.name = "bo_trial_step_000"
 
-        return Flow(
+        flow = Flow(
             [setup_job, init_job, first_trial],
             name=flow_name,
         )
+        flow.update_metadata(_metadata)
+        return flow
 
     def make_campaign(
         self,
@@ -222,6 +233,7 @@ class BOFlowMaker(Maker):
         reaction_library_data,
         fixed_precursors: Optional[Dict[str, float]] = None,
         fw_category: Optional[str] = None,
+        metadata: Optional[Dict] = None,
     ) -> Flow:
         """Build a BO campaign Flow using a pre-built reaction library.
 
@@ -277,6 +289,12 @@ class BOFlowMaker(Maker):
         if fw_category:
             init_job.update_config({"manager_config": {"_category": fw_category}})
 
+        _metadata = {
+            "target_phase": target_phase,
+            "chemical_system": chemical_system,
+            **(metadata or {}),
+        }
+
         first_trial = bo_trial_step(
             iteration=0,
             total_iterations=total_iterations,
@@ -287,9 +305,12 @@ class BOFlowMaker(Maker):
             objective_config=objective_config,
             output_dir=output_dir,
             fw_category=fw_category,
+            metadata=_metadata,
         )
         if fw_category:
             first_trial.update_config({"manager_config": {"_category": fw_category}})
-        first_trial.name = "bo_trial_000"
+        first_trial.name = "bo_trial_step_000"
 
-        return Flow([init_job, first_trial], name=flow_name)
+        flow = Flow([init_job, first_trial], name=flow_name)
+        flow.update_metadata(_metadata)
+        return flow

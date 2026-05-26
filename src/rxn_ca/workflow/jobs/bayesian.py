@@ -177,6 +177,7 @@ def bo_trial_step(
     objective_config: dict,
     output_dir: str,
     fw_category: Optional[str] = None,
+    metadata: Optional[Dict] = None,
 ) -> Response:
     """Run one Bayesian optimization trial and chain the next.
 
@@ -382,9 +383,13 @@ def bo_trial_step(
             objective_config=objective_config,
             output_dir=output_dir,
             fw_category=fw_category,
+            metadata=metadata,
         )
         if fw_category:
             next_job.update_config({"manager_config": {"_category": fw_category}})
+        next_job.name = f"bo_trial_step_{iteration + 1:03d}"
+        if metadata:
+            next_job.update_metadata(metadata)
         return Response(addition=next_job)
 
     # Final iteration: collect all trial results and write summary
