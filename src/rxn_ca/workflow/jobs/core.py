@@ -174,7 +174,7 @@ def run_simulation(
     save_to_file: bool = True,
     metadata: Dict[str, Any] = None,
     live_compress: bool = True,
-    compress_freq: int = 100,
+    compress_freq: int = 500,
 ) -> SimulationOutput:
     """Run an rxn-ca simulation.
 

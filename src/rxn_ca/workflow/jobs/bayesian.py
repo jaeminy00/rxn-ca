@@ -226,7 +226,7 @@ def bo_trial_step(
     simulation_size = objective_config["simulation_size"]
     num_realizations = objective_config["num_realizations"]
     live_compress = objective_config.get("live_compress", True)
-    compress_freq = objective_config.get("compress_freq", 50)
+    compress_freq = objective_config.get("compress_freq", 500)
     target_name = objective_config.get("target_name", "yield")
 
     output_path = Path(output_dir)
