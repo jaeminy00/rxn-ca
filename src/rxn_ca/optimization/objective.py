@@ -49,7 +49,7 @@ class ObjectiveConfig:
     num_realizations: int = 3
     cache_results: bool = True
     live_compress: bool = True
-    compress_freq: int = 50
+    compress_freq: int = 500
 
 
 class ObjectiveFunction:

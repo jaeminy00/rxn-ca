@@ -85,7 +85,7 @@ def setup_reaction_library(
     chemical_system: str,
     temperatures: List[float],
     ensure_phases: List[str] = None,
-    metastability_cutoff: float = 0.1,
+    metastability_cutoff: float = 0.03,
     exclude_theoretical: bool = True,
     save_to_file: bool = True,
     library_dir: Optional[str] = None,
@@ -158,11 +158,11 @@ def run_simulation(
     reaction_library_data: ReactionLibraryData = None,
     chemical_system: str = None,
     ensure_phases: List[str] = None,
-    metastability_cutoff: float = 0.1,
+    metastability_cutoff: float = 0.03,
     save_to_file: bool = True,
     metadata: Dict[str, Any] = None,
     live_compress: bool = True,
-    compress_freq: int = 100,
+    compress_freq: int = 500,
 ) -> SimulationOutput:
     """Run an rxn-ca simulation.
 

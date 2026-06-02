@@ -71,8 +71,8 @@ class BOFlowMaker(Maker):
     simulation_size: int = 10
     num_realizations: int = 3
     live_compress: bool = True
-    compress_freq: int = 50
-    metastability_cutoff: float = 0.1
+    compress_freq: int = 500
+    metastability_cutoff: float = 0.03
     exclude_theoretical: bool = True
 
     def make(
