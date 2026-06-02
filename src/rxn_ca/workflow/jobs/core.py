@@ -56,18 +56,6 @@ def _build_reaction_library(
     # Create phase set
     phase_set = SolidPhaseSet.from_entry_set(entries)
 
-    # Initialize Ray with the actually-allocated SLURM CPUs before dispatching
-    # any Ray tasks. Without this, Ray detects the full node CPU count and tries
-    # to spawn hundreds of new task workers that hang on a shared Perlmutter node.
-#    import os
-#    import ray
-#    if not ray.is_initialized():
-#        num_cpus = (
-#            int(os.environ.get("SLURM_NTASKS", 1))
-#            * int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
-#        )
-#        ray.init(num_cpus=num_cpus, ignore_reinit_error=True)
-
     # Enumerate reactions
     enumerators = [MinimizeGibbsEnumerator(), BasicEnumerator()]
     rxn_set = run_enumerators(enumerators, entries)
