@@ -299,7 +299,7 @@ def bo_trial_step(
             "reaction_library_data must include reaction_library_path or reaction_library_dict"
         )
 
-    # --- Steps 5-6: Run simulation and score ---
+    # --- Steps 5&6: Run simulation and score ---
     # If trial_path already exists this Firework is being re-run after a
     # walltime kill that occurred after the simulation completed (e.g. during
     # campaign save or Response chaining).  Skip the expensive simulation and
