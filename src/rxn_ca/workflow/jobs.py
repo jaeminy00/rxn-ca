@@ -168,6 +168,11 @@ def run_simulation(
     from rxn_ca.utilities.parallel_sim import run_sim_parallel
     from rxn_ca.utilities.single_sim import run_single_sim
     from rxn_ca.analysis import BulkReactionAnalyzer
+    from rxn_ca.analysis.reaction_step_analyzer import AnalysisMode, AnalysisQuantity
+    from rxn_ca.analysis.visualization.phase_trace_calculator import (
+        PhaseTraceCalculator,
+        PhaseTraceConfig,
+    )
     from rxn_ca.reactions import ReactionLibrary
 
     recipe_dict = recipe.as_dict()
@@ -223,18 +228,38 @@ def run_simulation(
         analyzer.last_loaded_step_idx
     )
 
-    # Build trajectory: molar amounts at each step
-    molar_trajectory: Dict[str, List[float]] = {}
-    temp_trajectory: List[float] = []
+    # Build trajectory: molar amounts at each step.
+    #
+    # get_all_absolute_molar_amounts(step) returns ONLY the phases present at that
+    # step (absent phases are omitted). Appending per-step like that gives each
+    # phase a list whose length is "number of steps it happened to exist for",
+    # with NO record of WHICH steps -- so the per-phase trajectories lose their
+    # common step alignment and a consumed precursor becomes indistinguishable
+    # from a late-forming product. That produced nonsense mass fractions
+    # downstream (e.g. a single phase reading 1.0 at step 0).
+    #
+    # Use the same aligned builder the plotter uses (PhaseTraceCalculator): it
+    # walks every step and 0-fills phases absent at that step, keeping all phases
+    # on the common step axis. matter_phases=None keeps gas phases (e.g. CO2),
+    # matching the previous get_all_absolute_molar_amounts behaviour;
+    # minimum_required_prevalence=0.0 keeps every phase that ever appears.
     step_indices: List[int] = list(analyzer.loaded_step_idxs)
+    temp_trajectory: List[float] = [
+        recipe.heating_schedule.temp_at(step_idx) for step_idx in step_indices
+    ]
 
-    for step_idx in step_indices:
-        amounts = analyzer.get_all_absolute_molar_amounts(step_idx)
-        for phase, amount in amounts.items():
-            if phase not in molar_trajectory:
-                molar_trajectory[phase] = []
-            molar_trajectory[phase].append(amount)
-        temp_trajectory.append(recipe.heating_schedule.temp_at(step_idx))
+    trace_calc = PhaseTraceCalculator(
+        analyzer.loaded_step_groups, analyzer.step_analyzer
+    )
+    molar_traces = trace_calc.get_general_traces(
+        PhaseTraceConfig(minimum_required_prevalence=0.0),
+        AnalysisQuantity.MOLES,
+        AnalysisMode.ABSOLUTE,
+        matter_phases=None,
+    )
+    molar_trajectory: Dict[str, List[float]] = {
+        t.name: [float(y) for y in t.ys] for t in molar_traces
+    }
 
     return SimulationOutput(
         final_molar_amounts=final_molar_amounts,
