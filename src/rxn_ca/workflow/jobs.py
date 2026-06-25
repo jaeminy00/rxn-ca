@@ -179,8 +179,19 @@ def run_simulation(
 
     # Set up phase set and reaction library
     if reaction_library_data is not None:
-        phase_set = SolidPhaseSet.from_dict(reaction_library_data.phase_set_dict)
-        reaction_lib = ReactionLibrary.from_dict(reaction_library_data.reaction_library_dict)
+        if reaction_library_data.reaction_library_path:
+            # The library was saved to a file (e.g. grid runs ship an empty-dict
+            # stub to keep the FireWorks spec small). Load the full library from
+            # disk; it carries the phase set as `reaction_lib.phases`.
+            reaction_lib = ReactionLibrary.from_file(reaction_library_data.reaction_library_path)
+            phase_set = reaction_lib.phases
+        elif reaction_library_data.reaction_library_dict:
+            phase_set = SolidPhaseSet.from_dict(reaction_library_data.phase_set_dict)
+            reaction_lib = ReactionLibrary.from_dict(reaction_library_data.reaction_library_dict)
+        else:
+            raise ValueError(
+                "reaction_library_data must include reaction_library_path or reaction_library_dict"
+            )
         chem_sys = reaction_library_data.chemical_system
         reaction_library_path = reaction_library_data.reaction_library_path
     else:
