@@ -124,19 +124,26 @@ class SearchSpace:
         name: str,
         low: float,
         high: float,
+        step: float = 0.05,
     ) -> "SearchSpace":
-        """Add a precursor ratio parameter.
+        """Add a precursor ratio parameter (discrete with given step size).
+
+        Discrete rather than continuous: BayBE enumerates all candidate values
+        and selects via Thompson Sampling, avoiding the L-BFGS-B boundary-hang
+        that occurs when a continuous parameter's optimum sits at its lower bound
+        (e.g. the stoichiometric ratio is also the minimum of the search range).
 
         Args:
             name: Parameter name (should match a precursor slot name + "_ratio")
-            low: Minimum ratio (typically 0-1)
-            high: Maximum ratio (typically 0-1)
+            low: Minimum ratio value
+            high: Maximum ratio value
+            step: Grid spacing between ratio values (default 0.05)
 
         Returns:
             self for method chaining
         """
         ratio_name = f"{name}_ratio" if not name.endswith("_ratio") else name
-        param = ContinuousParameter(name=ratio_name, low=low, high=high)
+        param = DiscreteParameter(name=ratio_name, low=low, high=high, step=step)
         return self._add_parameter(param)
 
     def add_continuous(
@@ -294,6 +301,41 @@ class SearchSpace:
     def parameter_names(self) -> List[str]:
         """Get list of all parameter names."""
         return [p.name for p in self.parameters]
+
+    def as_dict(self) -> dict:
+        """Serialize to a JSON-safe dict for passing between jobflow jobs."""
+        params = []
+        for p in self.parameters:
+            d: Dict[str, Any] = {"type": p.param_type.value, "name": p.name}
+            if isinstance(p, DiscreteParameter):
+                d["low"] = p.low
+                d["high"] = p.high
+                d["step"] = p.step
+            elif isinstance(p, ContinuousParameter):
+                d["low"] = p.low
+                d["high"] = p.high
+            elif isinstance(p, PrecursorSlotParameter):
+                d["candidates"] = p.candidates
+            elif isinstance(p, CategoricalParameter):
+                d["choices"] = p.choices
+            params.append(d)
+        return {"parameters": params}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "SearchSpace":
+        """Reconstruct a SearchSpace from a serialized dict."""
+        space = cls()
+        for p in d["parameters"]:
+            ptype = p["type"]
+            if ptype == "discrete":
+                space.add_discrete(p["name"], p["low"], p["high"], p["step"])
+            elif ptype == "continuous":
+                space.add_continuous(p["name"], p["low"], p["high"])
+            elif ptype == "precursor_slot":
+                space.add_precursor_slot(p["name"], p["candidates"])
+            elif ptype == "categorical":
+                space.add_categorical(p["name"], p["choices"])
+        return space
 
     def __repr__(self) -> str:
         param_strs = []

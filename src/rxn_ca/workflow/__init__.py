@@ -8,13 +8,16 @@ Requires the [workflow] optional dependency:
 """
 
 from .schemas import SimulationOutput, ReactionLibraryData
-from .jobs import setup_reaction_library, run_simulation
-from .flows import create_simulation_flow
+from .jobs import setup_reaction_library, run_simulation, init_bo_campaign, bo_trial_step
+from .flows import create_simulation_flow, BOFlowMaker
 
 __all__ = [
     "SimulationOutput",
     "ReactionLibraryData",
     "setup_reaction_library",
     "run_simulation",
+    "init_bo_campaign",
+    "bo_trial_step",
     "create_simulation_flow",
+    "BOFlowMaker",
 ]
